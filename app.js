@@ -42,10 +42,8 @@ const db = getFirestore(app);
 
 let currentUser = null;
 
-let currentSettings = {
-  dailyTargetSatang: 2300000,
-  monthlyTargetSatang: 50000000
-};
+// Target Memory Map: key = "YYYY-MM"
+let monthTargets = {};
 
 let activeDeleteDate = null;
 let editingDate = null;
@@ -131,6 +129,25 @@ const dateFmt = date => {
 const daysInMonth = (year, month) =>
   new Date(year, month, 0).getDate();
 
+/* Helper: Get Target Satang for specific YYYY-MM */
+async function getMonthlyTargetSatang(monthKey) {
+  if (monthTargets[monthKey] !== undefined) {
+    return monthTargets[monthKey];
+  }
+  try {
+    const docSnap = await getDoc(doc(db, "targets", monthKey));
+    if (docSnap.exists()) {
+      monthTargets[monthKey] = docSnap.data().monthlyTargetSatang || 0;
+    } else {
+      monthTargets[monthKey] = 0;
+    }
+  } catch (e) {
+    console.error("Fetch target error:", e);
+    monthTargets[monthKey] = 0;
+  }
+  return monthTargets[monthKey];
+}
+
 /* =========================================================
    PAGE NAVIGATION
 ========================================================= */
@@ -177,12 +194,11 @@ onAuthStateChanged(auth, async user => {
   if (user) {
     currentUser = user;
     if ($("user-display")) $("user-display").textContent = user.email || "Manager";
-    if ($("setting-manager-email")) $("setting-manager-email").value = user.email || "";
+    if ($("admin-display-email")) $("admin-display-email").textContent = user.email || "Manager";
 
     $("login-section")?.classList.add("hidden");
     $("app-section")?.classList.remove("hidden");
 
-    await loadSettings();
     loadDashboard();
   } else {
     $("login-section")?.classList.remove("hidden");
@@ -218,43 +234,6 @@ $("login-form")?.addEventListener("submit", async event => {
 if ($("btn-logout")) {
   $("btn-logout").onclick = () => signOut(auth);
 }
-
-/* =========================================================
-   SETTINGS
-========================================================= */
-
-async function loadSettings() {
-  try {
-    const snapshot = await getDoc(doc(db, "settings", "app"));
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      currentSettings.dailyTargetSatang = data.dailyTargetSatang || 2300000;
-      currentSettings.monthlyTargetSatang = data.monthlyTargetSatang || 50000000;
-    }
-
-    if ($("setting-daily-target")) $("setting-daily-target").value = toTHB(currentSettings.dailyTargetSatang);
-    if ($("setting-monthly-target")) $("setting-monthly-target").value = toTHB(currentSettings.monthlyTargetSatang);
-  } catch (error) {
-    console.error("Load settings error:", error);
-  }
-}
-
-$("btn-save-settings")?.addEventListener("click", async () => {
-  currentSettings.dailyTargetSatang = toSatang($("setting-daily-target").value);
-  currentSettings.monthlyTargetSatang = toSatang($("setting-monthly-target").value);
-
-  try {
-    await setDoc(doc(db, "settings", "app"), {
-      ...currentSettings,
-      updatedAt: serverTimestamp(),
-      updatedBy: currentUser.uid
-    });
-    alert("บันทึก Target เรียบร้อยแล้ว");
-    loadDashboard();
-  } catch (error) {
-    alert("ไม่สามารถบันทึก Settings: " + error.message);
-  }
-});
 
 /* =========================================================
    FIRESTORE SALES
@@ -303,17 +282,22 @@ async function loadDashboard() {
     const today = now.toISOString().split("T")[0];
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
+    const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
+
+    // Target เดือนปัจจุบัน
+    const monthlyTargetSatang = await getMonthlyTargetSatang(currentMonthKey);
+    const totalDaysInMonth = daysInMonth(year, month);
+    const dailyTargetSatang = totalDaysInMonth ? Math.round(monthlyTargetSatang / totalDaysInMonth) : 0;
 
     const total = rows.reduce((sum, row) => sum + (row.totalSalesSatang || 0), 0);
     const todayRow = rows.find(row => row.date === today);
     const todaySales = todayRow?.totalSalesSatang || 0;
     const recordDays = rows.length;
     const dayOfMonth = now.getDate();
-    const monthDays = daysInMonth(year, month);
 
     const avg = recordDays ? Math.round(total / recordDays) : 0;
-    const projection = dayOfMonth ? Math.round((total / dayOfMonth) * monthDays) : 0;
-    const remaining = Math.max(0, currentSettings.monthlyTargetSatang - total);
+    const projection = dayOfMonth ? Math.round((total / dayOfMonth) * totalDaysInMonth) : 0;
+    const remaining = Math.max(0, monthlyTargetSatang - total);
 
     const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
 
@@ -330,7 +314,6 @@ async function loadDashboard() {
     if ($("dash-period")) $("dash-period").textContent = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(now);
     if ($("dash-today-sales")) $("dash-today-sales").textContent = money(todaySales);
     if ($("dash-mtd-sales")) $("dash-mtd-sales").textContent = money(total);
-    if ($("dash-remaining")) $("dash-remaining").textContent = money(remaining);
     if ($("dash-avg-day")) $("dash-avg-day").textContent = money(avg);
     if ($("dash-record-days")) $("dash-record-days").textContent = `${recordDays} recorded days`;
     if ($("dash-projection")) $("dash-projection").textContent = money(projection);
@@ -342,23 +325,23 @@ async function loadDashboard() {
         : "Best day —";
     }
 
-    const todayAchievement = currentSettings.dailyTargetSatang ? (todaySales / currentSettings.dailyTargetSatang) * 100 : 0;
-    const monthAchievement = currentSettings.monthlyTargetSatang ? (total / currentSettings.monthlyTargetSatang) * 100 : 0;
+    const todayAchievement = dailyTargetSatang ? (todaySales / dailyTargetSatang) * 100 : 0;
+    const monthAchievement = monthlyTargetSatang ? (total / monthlyTargetSatang) * 100 : 0;
 
     if ($("dash-today-target")) $("dash-today-target").textContent = `${todayAchievement.toFixed(1)}% Target`;
     if ($("dash-mtd-target")) $("dash-mtd-target").textContent = `${monthAchievement.toFixed(1)}% Target`;
     if ($("dash-target-actual")) $("dash-target-actual").textContent = money(total);
-    if ($("dash-target-value")) $("dash-target-value").textContent = money(currentSettings.monthlyTargetSatang);
+    if ($("dash-target-value")) $("dash-target-value").textContent = money(monthlyTargetSatang);
 
     if ($("dash-projection-status")) {
-      const onTrack = projection >= currentSettings.monthlyTargetSatang;
+      const onTrack = projection >= monthlyTargetSatang;
       $("dash-projection-status").textContent = onTrack ? "On track" : "Below target";
       $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`;
     }
 
-    renderDashboardCharts(rows, channelTotals, total);
-    renderDashboardAlerts(rows, todaySales, voids, projection);
-    renderRecent(rows);
+    renderDashboardCharts(rows, channelTotals, total, monthlyTargetSatang, dailyTargetSatang);
+    renderDashboardAlerts(rows, todaySales, voids, projection, monthlyTargetSatang, dailyTargetSatang);
+    renderRecent(rows, dailyTargetSatang);
   } catch (error) {
     console.error("Dashboard error:", error);
   }
@@ -368,7 +351,7 @@ async function loadDashboard() {
    DASHBOARD CHARTS & ALERTS
 ========================================================= */
 
-function renderDashboardCharts(rows, channelsTotal, total) {
+function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, dailyTargetSatang) {
   const now = new Date();
   const days = daysInMonth(now.getFullYear(), now.getMonth() + 1);
   const labels = Array.from({ length: days }, (_, index) => String(index + 1).padStart(2, "0"));
@@ -386,7 +369,7 @@ function renderDashboardCharts(rows, channelsTotal, total) {
         labels,
         datasets: [
           { label: "Actual", data, borderColor: "#111827", backgroundColor: "rgba(17,24,39,.05)", fill: true, tension: 0.3, pointRadius: 2 },
-          { label: "Daily Target", data: labels.map(() => toTHB(currentSettings.dailyTargetSatang)), borderColor: "#94a3b8", borderDash: [5, 5], pointRadius: 0, tension: 0 }
+          { label: "Daily Target", data: labels.map(() => toTHB(dailyTargetSatang)), borderColor: "#94a3b8", borderDash: [5, 5], pointRadius: 0, tension: 0 }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -400,7 +383,7 @@ function renderDashboardCharts(rows, channelsTotal, total) {
       data: {
         labels: ["Actual", "Remaining"],
         datasets: [{
-          data: [toTHB(total), Math.max(0, toTHB(currentSettings.monthlyTargetSatang - total))],
+          data: [toTHB(total), Math.max(0, toTHB(monthlyTargetSatang - total))],
           backgroundColor: ["#111827", "#e5e7eb"],
           borderWidth: 0
         }]
@@ -437,11 +420,11 @@ function renderDashboardCharts(rows, channelsTotal, total) {
   }
 }
 
-function renderDashboardAlerts(rows, today, voids, projection) {
+function renderDashboardAlerts(rows, today, voids, projection, monthlyTargetSatang, dailyTargetSatang) {
   const alerts = [];
   if (today === 0) alerts.push(["warning", "ยังไม่มีการบันทึกยอดขายของวันนี้"]);
-  if (today > 0 && today < currentSettings.dailyTargetSatang) alerts.push(["warning", `ยอดวันนี้ต่ำกว่า Daily Target ${money(currentSettings.dailyTargetSatang - today)}`]);
-  if (projection < currentSettings.monthlyTargetSatang) alerts.push(["warning", "Projection สิ้นเดือนยังต่ำกว่า Monthly Target"]);
+  if (today > 0 && today < dailyTargetSatang) alerts.push(["warning", `ยอดวันนี้ต่ำกว่า Daily Target ${money(dailyTargetSatang - today)}`]);
+  if (projection < monthlyTargetSatang) alerts.push(["warning", "Projection สิ้นเดือนยังต่ำกว่า Monthly Target"]);
   if (voids > 0) alerts.push(["danger", `พบ Void Bills สะสม ${voids.toLocaleString()} บิล`]);
   if (!alerts.length) alerts.push(["success", "ผลการดำเนินงานอยู่ในเกณฑ์ปกติ"]);
 
@@ -454,7 +437,7 @@ function renderDashboardAlerts(rows, today, voids, projection) {
   }
 }
 
-function renderRecent(rows) {
+function renderRecent(rows, dailyTargetSatang) {
   if (!$("recent-sales-body")) return;
   const recent = rows.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
 
@@ -462,10 +445,10 @@ function renderRecent(rows) {
     <tr>
       <td class="p-2 font-semibold">${dateFmt(row.date)}</td>
       <td class="p-2 text-right font-bold">${money(row.totalSalesSatang)}</td>
-      <td class="p-2 text-right">${currentSettings.dailyTargetSatang ? ((row.totalSalesSatang / currentSettings.dailyTargetSatang) * 100).toFixed(1) : 0}%</td>
+      <td class="p-2 text-right">${dailyTargetSatang ? ((row.totalSalesSatang / dailyTargetSatang) * 100).toFixed(1) : 0}%</td>
       <td class="p-2 text-center">
-        <span class="pill ${row.totalSalesSatang >= currentSettings.dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}">
-          ${row.totalSalesSatang >= currentSettings.dailyTargetSatang ? "Above" : "Below"}
+        <span class="pill ${row.totalSalesSatang >= dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}">
+          ${row.totalSalesSatang >= dailyTargetSatang ? "Above" : "Below"}
         </span>
       </td>
     </tr>
@@ -567,12 +550,71 @@ $("form-daily-sales")?.addEventListener("submit", async event => {
 });
 
 /* =========================================================
-   DAILY SALES & TABLE
+   DAILY SALES & TARGET MANAGEMENT IN DAILY SALES
 ========================================================= */
+
+async function updateDailyTargetUI() {
+  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
+  if ($("daily-month") && !$("daily-month").value) {
+    $("daily-month").value = selectedMonth;
+  }
+
+  const [y, m] = selectedMonth.split("-").map(Number);
+  const totalDays = daysInMonth(y, m);
+
+  const mTargetSatang = await getMonthlyTargetSatang(selectedMonth);
+  const dTargetSatang = totalDays ? Math.round(mTargetSatang / totalDays) : 0;
+
+  if ($("daily-target-month-label")) {
+    const dObj = new Date(y, m - 1, 1);
+    $("daily-target-month-label").textContent = `เป้าหมายเดือน ${dObj.toLocaleDateString("th-TH", { month: "long", year: "numeric" })}`;
+  }
+
+  if ($("daily-monthly-target-input")) {
+    $("daily-monthly-target-input").value = toTHB(mTargetSatang);
+  }
+  if ($("daily-calc-target")) {
+    $("daily-calc-target").value = money(dTargetSatang);
+  }
+}
+
+// อัปเดตการคำนวณ Daily Target เมื่อแก้ไขยอด Monthly Target ใน Input
+$("daily-monthly-target-input")?.addEventListener("input", () => {
+  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
+  const [y, m] = selectedMonth.split("-").map(Number);
+  const totalDays = daysInMonth(y, m);
+
+  const valSatang = toSatang($("daily-monthly-target-input").value);
+  const avgSatang = totalDays ? Math.round(valSatang / totalDays) : 0;
+
+  if ($("daily-calc-target")) $("daily-calc-target").value = money(avgSatang);
+});
+
+// บันทึก Monthly Target ประจำเดือน
+$("btn-save-monthly-target")?.addEventListener("click", async () => {
+  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
+  const monthlyTargetSatang = toSatang($("daily-monthly-target-input").value);
+
+  try {
+    await setDoc(doc(db, "targets", selectedMonth), {
+      monthKey: selectedMonth,
+      monthlyTargetSatang,
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUser?.email || currentUser?.uid || "unknown"
+    });
+
+    monthTargets[selectedMonth] = monthlyTargetSatang;
+    alert(`บันทึก Target ประจำเดือน ${selectedMonth} เรียบร้อยแล้ว`);
+    loadDashboard();
+  } catch (error) {
+    alert("ไม่สามารถบันทึก Target: " + error.message);
+  }
+});
 
 async function loadDailySales() {
   try {
     allSales = await getSales("2000-01-01", "2099-12-31");
+    await updateDailyTargetUI();
     applyDailyFilter();
   } catch (error) {
     console.error("Daily sales error:", error);
@@ -594,7 +636,10 @@ function applyDailyFilter() {
 }
 
 $("daily-search")?.addEventListener("input", applyDailyFilter);
-$("daily-month")?.addEventListener("change", applyDailyFilter);
+$("daily-month")?.addEventListener("change", async () => {
+  await updateDailyTargetUI();
+  applyDailyFilter();
+});
 
 function renderDailyTable() {
   const pageSize = 10;
@@ -745,9 +790,15 @@ async function loadReports() {
     const to = $("report-to").value;
     const rows = await getSales(from, to);
 
+    // ดึง Target รายเดือนสำหรับช่วงที่เลือก
+    const fromMonth = from.slice(0, 7);
+    const mTargetSatang = await getMonthlyTargetSatang(fromMonth);
+    const [y, m] = fromMonth.split("-").map(Number);
+    const dTargetSatang = daysInMonth(y, m) ? Math.round(mTargetSatang / daysInMonth(y, m)) : 0;
+
     const total = rows.reduce((sum, row) => sum + (row.totalSalesSatang || 0), 0);
     const voids = rows.reduce((sum, row) => sum + (row.voidBill || 0), 0);
-    const target = currentSettings.dailyTargetSatang * rows.length;
+    const target = dTargetSatang * rows.length;
     const avg = rows.length ? Math.round(total / rows.length) : 0;
     const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
     const achievement = target ? (total / target) * 100 : 0;
@@ -764,15 +815,15 @@ async function loadReports() {
       channels.forEach(ch => channelsTotal[ch] = (channelsTotal[ch] || 0) + (row.payments?.[ch] || 0));
     });
 
-    renderReportCharts(rows, channelsTotal);
-    renderRanking(rows);
-    renderInsights(rows, total, target, voids, achievement);
+    renderReportCharts(rows, channelsTotal, dTargetSatang);
+    renderRanking(rows, dTargetSatang);
+    renderInsights(rows, total, target, voids, achievement, dTargetSatang);
   } catch (error) {
     console.error("Reports error:", error);
   }
 }
 
-function renderReportCharts(rows, channelTotals) {
+function renderReportCharts(rows, channelTotals, dTargetSatang) {
   const sorted = rows.slice().sort((a, b) => a.date.localeCompare(b.date));
   const labels = sorted.map(row => dateFmt(row.date));
   const actual = sorted.map(row => toTHB(row.totalSalesSatang));
@@ -785,7 +836,7 @@ function renderReportCharts(rows, channelTotals) {
         labels,
         datasets: [
           { label: "Actual", data: actual, backgroundColor: "#111827", borderRadius: 5 },
-          { label: "Daily Target", data: labels.map(() => toTHB(currentSettings.dailyTargetSatang)), type: "line", borderColor: "#94a3b8", pointRadius: 2, tension: 0 }
+          { label: "Daily Target", data: labels.map(() => toTHB(dTargetSatang)), type: "line", borderColor: "#94a3b8", pointRadius: 2, tension: 0 }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -820,12 +871,12 @@ function renderReportCharts(rows, channelTotals) {
   }
 }
 
-function renderRanking(rows) {
+function renderRanking(rows, dTargetSatang) {
   const sorted = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0));
   if (!$("report-ranking-body")) return;
 
   $("report-ranking-body").innerHTML = sorted.map((row, index) => {
-    const achievement = currentSettings.dailyTargetSatang ? (row.totalSalesSatang / currentSettings.dailyTargetSatang) * 100 : 0;
+    const achievement = dTargetSatang ? (row.totalSalesSatang / dTargetSatang) * 100 : 0;
     return `
       <tr>
         <td class="p-2 font-extrabold">#${index + 1}</td>
@@ -842,8 +893,8 @@ function renderRanking(rows) {
   }).join("") || `<tr><td colspan="5" class="p-6 text-center text-slate-400">ไม่มีข้อมูล</td></tr>`;
 }
 
-function renderInsights(rows, total, target, voids, achievement) {
-  const below = rows.filter(row => (row.totalSalesSatang || 0) < currentSettings.dailyTargetSatang).length;
+function renderInsights(rows, total, target, voids, achievement, dTargetSatang) {
+  const below = rows.filter(row => (row.totalSalesSatang || 0) < dTargetSatang).length;
   const top = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
 
   const insights = [
@@ -866,5 +917,10 @@ function renderInsights(rows, total, target, voids, achievement) {
 $("btn-report-refresh")?.addEventListener("click", loadReports);
 $("btn-print-report")?.addEventListener("click", () => window.print());
 $("btn-dash-refresh")?.addEventListener("click", loadDashboard);
+$("btn-admin-clear-cache")?.addEventListener("click", () => {
+  monthTargets = {};
+  loadDashboard();
+  alert("ทำการรีเฟรชข้อมูลสำเร็จ");
+});
 
 defaultReportDates();
