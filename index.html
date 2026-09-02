@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Performance Dashboard</title>
+    <title>Sales Performance Portal - UN10021_CNV</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -18,213 +18,285 @@
 </head>
 <body class="bg-slate-50 text-slate-700 min-h-screen antialiased">
 
-    <!-- ================= 1. Fullscreen Login View ================= -->
-    <section id="login-section" class="fixed inset-0 z-50 bg-slate-50 flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-slate-100">
+    <!-- ================= Login Section ================= -->
+    <section id="login-section" class="fixed inset-0 z-50 bg-slate-100 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-slate-200">
             <div class="text-center space-y-2 mb-6">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 mb-1 text-slate-700">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800">เข้าสู่ระบบ</h2>
-                <p class="text-xs text-slate-400">กรุณากรอกข้อมูลเพื่อเข้าใช้งาน Dashboard ยอดขาย</p>
+                <span class="inline-block px-3 py-1 bg-slate-100 text-slate-600 font-bold text-xs rounded-full">UN10021_CNV</span>
+                <h2 class="text-2xl font-bold text-slate-800">Sales Performance Portal</h2>
+                <p class="text-xs text-slate-400">กรุณาเข้าสู่ระบบด้วยบัญชีผู้จัดการ</p>
             </div>
-            
-            <div class="space-y-4">
+            <form id="login-form" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">อีเมลผู้ใช้งาน</label>
-                    <input type="email" id="email" required placeholder="name@company.com" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition">
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Email Manager</label>
+                    <input type="email" id="login-email" required placeholder="manager@email.com" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">รหัสผ่าน</label>
-                    <input type="password" id="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition">
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition">
                 </div>
-                <button type="button" id="btn-login" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm py-3 rounded-xl shadow-sm transition duration-200">เข้าสู่ระบบ</button>
+                <button type="submit" id="btn-login" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm py-3 rounded-xl transition duration-200 shadow-md">เข้าสู่ระบบ</button>
                 <p id="login-error" class="text-rose-500 text-xs text-center mt-2 hidden"></p>
-            </div>
+            </form>
         </div>
     </section>
 
-    <!-- ================= 2. Main App Content ================= -->
+    <!-- ================= Main App Portal ================= -->
     <div id="app-section" class="hidden min-h-screen flex flex-col">
         
-        <!-- Top Navigation Bar -->
-        <header class="bg-white border-b border-slate-200/80 sticky top-0 z-40">
+        <!-- Header & Nav Bar -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                        S
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm">S</div>
+                        <div>
+                            <span class="font-bold text-slate-800 text-sm block leading-none">Sales Portal</span>
+                            <span class="text-[10px] text-slate-400">UN10021_CNV</span>
+                        </div>
                     </div>
-                    <div>
-                        <h1 class="font-bold text-slate-800 text-base leading-tight">Sales Analytics</h1>
-                        <p class="text-[11px] text-slate-400">ระบบติดตามและสรุปยอดขายประจำวัน</p>
-                    </div>
+                    <!-- Navigation Tabs -->
+                    <nav class="hidden md:flex items-center gap-1">
+                        <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-900 bg-slate-100" data-page="page-dashboard">Dashboard</button>
+                        <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-daily">Daily Sales</button>
+                        <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-history">History</button>
+                        <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-reports">Reports</button>
+                        <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-settings">Settings</button>
+                    </nav>
                 </div>
 
-                <div id="user-info" class="flex items-center gap-4">
-                    <div class="hidden sm:flex flex-col text-right">
-                        <span class="text-xs font-semibold text-slate-700" id="user-email">user@unocoffeeco.co.th</span>
-                        <span class="text-[10px] text-emerald-600 font-medium">● Online System</span>
-                    </div>
-                    <button id="btn-logout" class="text-xs font-medium text-slate-500 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-3.5 py-2 rounded-xl transition duration-200 flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        ออกจากระบบ
-                    </button>
+                <div class="flex items-center gap-3">
+                    <span id="user-display" class="text-xs font-medium text-slate-600 hidden sm:inline">manager@email.com</span>
+                    <button id="btn-logout" class="text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition">ออกจากระบบ</button>
                 </div>
+            </div>
+            <!-- Mobile Navigation -->
+            <div class="md:hidden flex border-t border-slate-100 overflow-x-auto px-2 py-1">
+                <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-slate-900" data-page="page-dashboard">Dashboard</button>
+                <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-slate-500" data-page="page-daily">Daily Sales</button>
+                <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-slate-500" data-page="page-history">History</button>
+                <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-slate-500" data-page="page-reports">Reports</button>
+                <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-slate-500" data-page="page-settings">Settings</button>
             </div>
         </header>
 
-        <!-- Workspace Area -->
-        <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col gap-6">
+        <!-- Main Workspace -->
+        <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1">
             
-            <!-- Filter Bar -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">มุมมองข้อมูล:</span>
-                    <select class="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-lg px-3 py-1.5 focus:outline-none">
-                        <option>7 วันล่าสุด (Last 7 Days)</option>
-                        <option>เดือนนี้ (MTD)</option>
-                        <option>เดือนที่แล้ว (Last Month)</option>
-                    </select>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button id="btn-load-report" class="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition duration-150 flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        ดึงรายงานล่าสุด
-                    </button>
-                </div>
-            </div>
-
-            <!-- KPI Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400 block mb-1">ยอดขายประจำวัน (Daily)</span>
-                        <div class="flex items-baseline justify-between">
-                            <span id="res-daily" class="text-2xl font-bold text-slate-800">0.00 THB</span>
-                        </div>
+            <!-- 1. PAGE: DASHBOARD -->
+            <section id="page-dashboard" class="page-content space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <span class="text-xs font-medium text-slate-400 block mb-1">Today's Sales</span>
+                        <div id="dash-today-sales" class="text-2xl font-bold text-slate-800">฿0</div>
+                        <span id="dash-today-target" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-3">ประจำวันที่เลือก</p>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400 block mb-1">ยอดสะสมเดือนนี้ (MTD)</span>
-                        <div class="flex items-baseline justify-between">
-                            <span id="res-mtd" class="text-2xl font-bold text-emerald-600">0.00 THB</span>
-                        </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <span class="text-xs font-medium text-slate-400 block mb-1">MTD Sales</span>
+                        <div id="dash-mtd-sales" class="text-2xl font-bold text-slate-800">฿0</div>
+                        <span id="dash-mtd-target" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-3">สะสมตั้งแต่วันที่ 1 ถึงปัจจุบัน</p>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400 block mb-1">ช่องทางยอดนิยม</span>
-                        <span id="top-channel" class="text-xl font-bold text-slate-800 block mt-1">-</span>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <span class="text-xs font-medium text-slate-400 block mb-1">Avg / Day</span>
+                        <div id="dash-avg-day" class="text-2xl font-bold text-slate-800">฿0</div>
+                        <span class="text-xs text-slate-400 mt-2 block">คำนวณจากวันที่บันทึก</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-3">วิเคราะห์จากยอดขายประจำวัน</p>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400 block mb-1">จำนวน Void (บิล)</span>
-                        <span id="res-void" class="text-xl font-bold text-rose-600 block mt-1">0 BILL</span>
-                    </div>
-                    <p class="text-[11px] text-slate-400 mt-3">รายการบิลที่ถูกยกเลิก</p>
-                </div>
-            </div>
-
-            <!-- Analytics & Form Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                
-                <div class="lg:col-span-7 space-y-6">
-                    <div id="report-view" class="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-xs">
-                        <h3 class="font-bold text-slate-800 text-base mb-1">สรุปรายละเอียดการชำระเงิน</h3>
-                        <p class="text-xs text-slate-400 mb-4">จำแนกตามช่องทางต่างๆ ประจำวันที่เลือก</p>
-                        <ul id="res-payments" class="text-xs space-y-2 text-slate-600">
-                            <!-- รายการ Payment จะแสดงตรงนี้ -->
-                        </ul>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <span class="text-xs font-medium text-slate-400 block mb-1">Void Bills</span>
+                        <div id="dash-void-bills" class="text-2xl font-bold text-rose-600">0 Bills</div>
+                        <span class="text-xs text-slate-400 mt-2 block">สะสมในเดือนนี้</span>
                     </div>
                 </div>
 
-                <!-- Input Form (ตามฟอร์มใหม่) -->
-                <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200/60 shadow-xs sticky top-20">
-                    <div class="mb-4">
-                        <h3 class="font-bold text-slate-800 text-base">บันทึกยอดขายประจำวัน</h3>
-                        <p class="text-xs text-slate-400">กรอกข้อมูลยอดขายตามช่องทางชำระเงิน</p>
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <h3 class="font-bold text-slate-800 text-sm mb-4">Sales Trend (7 Days)</h3>
+                        <div class="h-64"><canvas id="chart-sales-trend"></canvas></div>
+                    </div>
+                    <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <h3 class="font-bold text-slate-800 text-sm mb-4">Payment Mix</h3>
+                        <div class="h-64 flex items-center justify-center"><canvas id="chart-payment-mix"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. PAGE: DAILY SALES -->
+            <section id="page-daily" class="page-content hidden space-y-6">
+                <div class="max-w-2xl mx-auto bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 id="form-title" class="font-bold text-slate-800 text-lg">บันทึกยอดขายประจำวัน</h3>
+                        <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">UN10021_CNV</span>
                     </div>
 
-                    <form id="sales-form" class="space-y-3">
+                    <form id="form-daily-sales" class="space-y-4">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Date (YYYY-MM-DD)</label>
-                            <input type="date" id="sales-date" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-slate-400 focus:bg-white transition">
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Business Date</label>
+                            <input type="date" id="sale-date" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-slate-400">
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Sale (THB)</label>
-                            <div class="relative">
-                                <input type="number" id="total-sales" step="0.01" required placeholder="0.00" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-400 focus:bg-white transition">
-                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">THB</span>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Total Sales (THB)</label>
+                            <input type="number" step="0.01" id="sale-total" required placeholder="0.00" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:outline-none focus:border-slate-400">
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-3">Payment Breakdown (THB)</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Cash</span>
+                                    <input type="number" step="0.01" data-pay="cash" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Credit Card</span>
+                                    <input type="number" step="0.01" data-pay="creditCard" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">QR Payment</span>
+                                    <input type="number" step="0.01" data-pay="qrPayment" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">PromptPay</span>
+                                    <input type="number" step="0.01" data-pay="promptPay" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">TrueMoney</span>
+                                    <input type="number" step="0.01" data-pay="trueMoney" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Bank Transfer</span>
+                                    <input type="number" step="0.01" data-pay="bankTransfer" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Line Pay</span>
+                                    <input type="number" step="0.01" data-pay="linePay" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Alipay</span>
+                                    <input type="number" step="0.01" data-pay="alipay" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Line Man</span>
+                                    <input type="number" step="0.01" data-pay="lineMan" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600 font-medium">Grab</span>
+                                    <input type="number" step="0.01" data-pay="grab" value="0" class="pay-input w-28 bg-white px-2 py-1 border border-slate-200 rounded-lg text-right font-bold">
+                                </div>
                             </div>
                         </div>
 
                         <div class="border-t border-slate-100 pt-3">
-                            <span class="block text-xs font-bold text-slate-700 mb-2">Payment Breakdown</span>
-                            <div class="space-y-2 text-xs max-h-[320px] overflow-y-auto pr-1">
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Cash</span>
-                                    <input type="number" step="0.01" id="pay-cash" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Credit Card</span>
-                                    <input type="number" step="0.01" id="pay-credit" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">QR Payment</span>
-                                    <input type="number" step="0.01" id="pay-qr" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">PromptPay</span>
-                                    <input type="number" step="0.01" id="pay-promptpay" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">TrueMoney</span>
-                                    <input type="number" step="0.01" id="pay-truemoney" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Bank Transfer</span>
-                                    <input type="number" step="0.01" id="pay-banktransfer" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Line Pay</span>
-                                    <input type="number" step="0.01" id="pay-linepay" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Alipay</span>
-                                    <input type="number" step="0.01" id="pay-alipay" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Line Man</span>
-                                    <input type="number" step="0.01" id="pay-lineman" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-slate-50 rounded-lg">
-                                    <span class="text-slate-600 font-medium pl-1">Grab</span>
-                                    <input type="number" step="0.01" id="pay-grab" value="0" class="w-28 bg-white px-2 py-1 border border-slate-200 rounded-md text-right font-semibold focus:outline-none">
-                                </div>
-                                <div class="flex items-center justify-between gap-2 p-1.5 bg-rose-50 rounded-lg border border-rose-100">
-                                    <span class="text-rose-700 font-semibold pl-1">Void (BILL)</span>
-                                    <input type="number" step="1" id="pay-void" value="0" class="w-28 bg-white px-2 py-1 border border-rose-200 rounded-md text-right font-semibold focus:outline-none text-rose-600">
-                                </div>
-                            </div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Void Bills (จำนวนบิล)</label>
+                            <input type="number" step="1" id="sale-void" value="0" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-rose-600 focus:outline-none">
                         </div>
 
-                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2.5 rounded-xl transition duration-200 shadow-xs">
-                            บันทึกข้อมูลยอดขาย
-                        </button>
+                        <!-- Real-time Validation Box -->
+                        <div id="val-box" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex justify-between items-center">
+                            <span>Sum Breakdown: <strong id="val-sum">฿0.00</strong></span>
+                            <span id="val-status" class="font-bold text-amber-600">Total Sales 不ตรงกับ Sum Breakdown</span>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button type="submit" id="btn-save-sale" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-3 rounded-xl transition shadow-xs">Save Record</button>
+                            <button type="button" id="btn-cancel-edit" class="hidden px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs py-3 rounded-xl transition">Cancel</button>
+                        </div>
                     </form>
                 </div>
+            </section>
 
-            </div>
+            <!-- 3. PAGE: HISTORY -->
+            <section id="page-history" class="page-content hidden space-y-4">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 text-sm">ประวัติบันทึกยอดขาย (Sales Records)</h3>
+                        <span class="text-xs text-slate-400">เรียงจากล่าสุด</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 font-semibold text-slate-700 uppercase border-b border-slate-100">
+                                <tr>
+                                    <th class="p-3.5">Date</th>
+                                    <th class="p-3.5 text-right">Total Sales</th>
+                                    <th class="p-3.5 text-center">Void Bills</th>
+                                    <th class="p-3.5">Updated By</th>
+                                    <th class="p-3.5 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-history-body" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. PAGE: REPORTS -->
+            <section id="page-reports" class="page-content hidden space-y-6">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <h3 class="font-bold text-slate-800 text-sm mb-2">Monthly Performance Summary</h3>
+                    <p class="text-xs text-slate-400 mb-4">รายงานภาพรวมสถิติรายเดือนและสัดส่วนช่องทางชำระเงิน</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-700 mb-3">จำแนกตามช่องทางชำระเงิน (MTD Total)</h4>
+                            <ul id="report-payment-list" class="space-y-2 text-xs">
+                                <!-- JS Populate -->
+                            </ul>
+                        </div>
+                        <div class="flex items-center justify-center">
+                            <div class="w-full max-w-xs h-64"><canvas id="chart-report-pie"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. PAGE: SETTINGS -->
+            <section id="page-settings" class="page-content hidden space-y-6">
+                <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                    <h3 class="font-bold text-slate-800 text-base border-b border-slate-100 pb-3">Portal Settings</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Branch Code</label>
+                            <input type="text" value="UN10021_CNV" disabled class="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 cursor-not-allowed">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Manager Email</label>
+                            <input type="text" id="setting-manager-email" disabled class="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 cursor-not-allowed">
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-4 space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Daily Target (THB)</label>
+                                <input type="number" id="setting-daily-target" placeholder="23000" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Monthly Target (THB)</label>
+                                <input type="number" id="setting-monthly-target" placeholder="500000" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800">
+                            </div>
+
+                            <button id="btn-save-settings" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-3 rounded-xl transition shadow-xs">Save Target Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="modal-delete" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-xl font-bold">!</div>
+            <h4 class="font-bold text-slate-800 text-base">Are you sure?</h4>
+            <p class="text-xs text-slate-500">คุณต้องการลบข้อมูลยอดขายของวันที่ <strong id="delete-date-target">-</strong> ใช่หรือไม่? การกระทำนี้ไม่สามารถยกเลิกได้</p>
+            <div class="flex gap-2 pt-2">
+                <button id="btn-confirm-delete" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs py-2.5 rounded-xl transition">Delete</button>
+                <button id="btn-cancel-delete" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs py-2.5 rounded-xl transition">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="./app.js"></script>
