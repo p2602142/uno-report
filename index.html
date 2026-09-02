@@ -85,6 +85,394 @@
     </div>
   </div>
 
+  <!-- Main App Portal -->
+  <div id="app-section" class="min-h-screen flex flex-col">
+    <!-- Header Nav -->
+    <header class="bg-uno-charcoal text-white sticky top-0 z-30 shadow-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[68px] flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-uno-red text-white flex items-center justify-center font-black text-base shadow-sm">U</div>
+            <div>
+              <span class="font-black text-white text-sm block leading-none tracking-wider">UNO! COFFEE</span>
+              <span class="text-[10px] text-neutral-400 font-medium">Sales Portal</span>
+            </div>
+          </div>
+          <!-- Navigation Tabs (Desktop) -->
+          <nav class="hidden md:flex items-center gap-1">
+            <button class="nav-btn active px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-uno-red" data-page="page-dashboard">Dashboard</button>
+            <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-daily">Daily Sales</button>
+            <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-history">History</button>
+            <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-reports">Reports</button>
+            <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-settings">Admin Console</button>
+          </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span id="user-display" class="text-xs font-medium text-neutral-300 hidden sm:inline">-</span>
+          <div id="btn-branch-info" class="text-xs font-bold text-white bg-uno-red px-3.5 py-2 rounded-xl shadow-sm cursor-default flex items-center gap-1.5">
+            <span class="text-[10px] text-red-200 uppercase font-normal">สาขา:</span>
+            <span>UN1021-CNV</span>
+          </div>
+        </div>
+      </div>
+      <!-- Mobile Nav Navigation -->
+      <div class="md:hidden flex border-t border-neutral-800 overflow-x-auto px-2 py-2 gap-1 scrollbar-none">
+        <button class="nav-btn active text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-white bg-uno-red rounded-lg" data-page="page-dashboard">Dashboard</button>
+        <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-neutral-300" data-page="page-daily">Daily Sales</button>
+        <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-neutral-300" data-page="page-history">History</button>
+        <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-neutral-300" data-page="page-reports">Reports</button>
+        <button class="nav-btn text-xs font-semibold px-3 py-1.5 whitespace-nowrap text-neutral-300" data-page="page-settings">Admin Console</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1">
+      <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p class="text-[11px] font-black uppercase tracking-widest text-uno-red">UNO! COFFEE COMPANY</p>
+          <h1 class="text-xl sm:text-2xl font-black tracking-tight text-uno-charcoal mt-0.5">Sales Performance Overview</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-dash-refresh" class="px-3.5 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition">Refresh</button>
+          <button id="btn-open-sale" class="px-4 py-2 bg-uno-red text-white rounded-xl text-xs font-bold shadow-xs hover:bg-red-700 transition">+ บันทึกยอดขาย</button>
+        </div>
+      </div>
+            
+      <!-- 1. DASHBOARD PAGE -->
+      <section id="page-dashboard" class="page space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="portal-card p-5 border-l-4 border-l-uno-red">
+            <span class="text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">Today's Sales (<span id="dash-period">-</span>)</span>
+            <div id="dash-today-sales" class="text-[26px] leading-tight font-black text-uno-charcoal">฿0.00</div>
+            <span id="dash-today-target" class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
+          </div>
+          <div class="portal-card p-5">
+            <span class="text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">MTD Sales</span>
+            <div id="dash-mtd-sales" class="text-[26px] leading-tight font-black text-uno-red">฿0.00</div>
+            <span id="dash-mtd-target" class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
+          </div>
+          <div class="portal-card p-5">
+            <span class="text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">Avg / Day</span>
+            <div id="dash-avg-day" class="text-[26px] leading-tight font-black text-uno-charcoal">฿0.00</div>
+            <span id="dash-record-days" class="text-xs text-neutral-400 mt-2 block">0 recorded days</span>
+          </div>
+          <div class="portal-card p-5">
+            <span class="text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">Void Bills</span>
+            <div id="dash-void-bills" class="text-2xl font-black text-uno-red">0</div>
+            <span id="dash-best-day" class="text-xs text-neutral-400 mt-2 block">Best day —</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-4 uppercase tracking-wider">Sales Trend</h3>
+            <div class="h-64"><canvas id="chart-sales-trend"></canvas></div>
+          </div>
+          <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-4 uppercase tracking-wider">Monthly Target Achievement</h3>
+            <div class="h-48 relative flex items-center justify-center"><canvas id="chart-target"></canvas></div>
+            <div class="mt-4 pt-3 border-t border-neutral-100 flex justify-between text-xs font-bold">
+              <span>Actual: <strong id="dash-target-actual" class="text-uno-red">฿0.00</strong></span>
+              <span>Target: <strong id="dash-target-value">฿0.00</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-4 uppercase tracking-wider">Payment Mix</h3>
+            <div class="h-48 mb-4"><canvas id="chart-payment-mix"></canvas></div>
+            <div id="dash-payment-summary" class="space-y-1.5 border-t border-neutral-100 pt-3"></div>
+          </div>
+          <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-2 uppercase tracking-wider">Performance Alerts</h3>
+            <div class="text-xs text-neutral-500 mb-4">Projection: <span id="dash-projection" class="font-bold text-uno-charcoal">฿0.00</span> <span id="dash-projection-status" class="pill bg-neutral-100">Status</span></div>
+            <div id="dash-alerts" class="space-y-2"></div>
+          </div>
+          <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-4 uppercase tracking-wider">Recent Records</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b text-neutral-400">
+                    <th class="pb-2">Date</th>
+                    <th class="pb-2 text-right">Sales</th>
+                    <th class="pb-2 text-right">% Target</th>
+                    <th class="pb-2 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-sales-body" class="divide-y divide-neutral-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. DAILY SALES PAGE -->
+      <section id="page-daily" class="page hidden space-y-4">
+        <div class="portal-card p-4 bg-uno-charcoal text-white flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div>
+            <span class="text-[10px] text-neutral-400 uppercase font-black tracking-widest block">Target Manager</span>
+            <div class="text-sm font-bold">
+              <span id="daily-target-month-label">เป้าหมายประจำเดือน</span>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div class="flex-1 md:flex-none">
+              <label class="block text-[10px] text-neutral-400 mb-0.5">Monthly Target (THB)</label>
+              <input type="number" id="daily-monthly-target-input" placeholder="0.00" class="w-full md:w-36 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs font-bold text-white outline-none focus:border-uno-red">
+            </div>
+            <div class="flex-1 md:flex-none">
+              <label class="block text-[10px] text-neutral-400 mb-0.5">Daily Target (เฉลี่ย/วัน)</label>
+              <input type="text" id="daily-calc-target" value="฿0.00" disabled class="w-full md:w-32 px-3 py-1.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs font-bold text-uno-red cursor-not-allowed">
+            </div>
+            <button id="btn-save-monthly-target" class="w-full md:w-auto self-end px-4 py-2 bg-uno-red hover:bg-red-700 text-white font-bold text-xs rounded-xl transition">บันทึก Target</button>
+          </div>
+        </div>
+
+        <div class="portal-card p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+          <div class="flex flex-wrap gap-2">
+            <input type="text" id="daily-search" placeholder="ค้นหาตามวันที่ / ผู้บันทึก..." class="field text-xs sm:w-64">
+            <input type="month" id="daily-month" class="field text-xs sm:w-40">
+          </div>
+          <span id="daily-count" class="text-xs font-bold text-neutral-500 self-end sm:self-center">0 records</span>
+        </div>
+
+        <div class="portal-card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-neutral-600 whitespace-nowrap">
+              <thead class="bg-neutral-100 font-bold text-uno-charcoal uppercase border-b border-neutral-200">
+                <tr>
+                  <th class="p-3">Date</th>
+                  <th class="p-3 text-right">Total Sales</th>
+                  <th class="p-3 text-right">Cash</th>
+                  <th class="p-3 text-right">Credit Card</th>
+                  <th class="p-3 text-right">QR</th>
+                  <th class="p-3 text-right">PromptPay</th>
+                  <th class="p-3 text-right">TrueMoney</th>
+                  <th class="p-3 text-right">Bank Transfer</th>
+                  <th class="p-3 text-right">Line Pay</th>
+                  <th class="p-3 text-right">Alipay</th>
+                  <th class="p-3 text-right">Line Man</th>
+                  <th class="p-3 text-right">Grab</th>
+                  <th class="p-3 text-center">Void</th>
+                  <th class="p-3">Updated By</th>
+                  <th class="p-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="daily-table-body" class="divide-y divide-neutral-100"></tbody>
+            </table>
+          </div>
+          <div class="p-3 border-t border-neutral-100 flex justify-between items-center text-xs">
+            <span id="daily-page-info" class="text-neutral-500">Page 1 / 1</span>
+            <div class="flex gap-2">
+              <button id="daily-prev" class="px-3 py-1 bg-neutral-100 hover:bg-neutral-200 rounded-lg font-bold disabled:opacity-50">Prev</button>
+              <button id="daily-next" class="px-3 py-1 bg-neutral-100 hover:bg-neutral-200 rounded-lg font-bold disabled:opacity-50">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. HISTORY PAGE -->
+      <section id="page-history" class="page hidden space-y-4">
+        <div class="portal-card overflow-hidden">
+          <div class="p-4 border-b border-neutral-100 flex justify-between items-center">
+            <h3 class="font-bold text-uno-charcoal text-sm">ประวัติบันทึกยอดขาย (Sales Records)</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-neutral-600">
+              <thead class="bg-neutral-100 font-bold text-uno-charcoal uppercase border-b border-neutral-200">
+                <tr>
+                  <th class="p-3.5">Date</th>
+                  <th class="p-3.5 text-right">Total Sales</th>
+                  <th class="p-3.5 text-center">Void Bills</th>
+                  <th class="p-3.5">Recorded By</th>
+                  <th class="p-3.5">Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body" class="divide-y divide-neutral-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. REPORTS PAGE -->
+      <section id="page-reports" class="page hidden space-y-6">
+        <div class="portal-card p-4 flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="text-xs font-bold text-neutral-600">ช่วงเวลา:</label>
+            <input type="date" id="report-from" class="field text-xs !w-auto">
+            <span class="text-xs text-neutral-400">ถึง</span>
+            <input type="date" id="report-to" class="field text-xs !w-auto">
+            <button id="btn-report-refresh" class="px-4 py-2 bg-uno-red text-white text-xs font-bold rounded-xl hover:bg-red-700 transition">ดึงรายงาน</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-4 uppercase tracking-wider">Report Sales Trend</h3>
+            <div class="h-64"><canvas id="chart-report-trend"></canvas></div>
+          </div>
+          <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+            <h3 class="font-extrabold text-uno-charcoal text-sm mb-4 uppercase tracking-wider">Payment Share</h3>
+            <div class="h-64"><canvas id="chart-report-pie"></canvas></div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs">
+          <h3 class="font-extrabold text-uno-charcoal text-sm mb-3 uppercase tracking-wider">Key Executive Insights</h3>
+          <div id="report-insights" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        </div>
+      </section>
+
+      <!-- 5. ADMIN CONSOLE PAGE -->
+      <section id="page-settings" class="page hidden space-y-6">
+        <div class="portal-card p-6 max-w-2xl">
+          <h3 class="font-bold text-base text-uno-charcoal mb-4">Admin Console & Settings</h3>
+          <div class="space-y-4 text-xs">
+            <div class="p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+              <span class="text-neutral-500 block mb-1">Current Branch</span>
+              <strong id="admin-display-branch" class="text-sm text-uno-charcoal block">UN1021-CNV</strong>
+            </div>
+
+            <div class="p-4 bg-red-50 rounded-xl border border-red-200 space-y-3">
+              <h4 class="font-bold text-uno-red text-sm">Database Maintenance & Seed Data</h4>
+              <p class="text-neutral-600 leading-relaxed">
+                การทำงานนี้จะล้างข้อมูลยอดขายเดิมและจำลองข้อมูลตัวอย่างขึ้นมาใหม่ (⚠️ สำหรับกรณีต้องการล้างข้อมูลเพื่อเริ่มต้นใหม่เท่านั้น)
+              </p>
+              <button id="btn-db-reset" class="px-4 py-2.5 bg-uno-red hover:bg-red-700 text-white font-bold rounded-xl transition">
+                Reset / Seed Sample Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal Record/Edit Sale -->
+  <div id="modal-sale" class="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8">
+      <div class="flex justify-between items-center border-b border-neutral-100 pb-3">
+        <h4 id="sale-modal-title" class="font-bold text-uno-charcoal text-base">บันทึกยอดขายประจำวัน</h4>
+        <button id="btn-close-sale" class="text-neutral-400 hover:text-neutral-600 font-bold">✕</button>
+      </div>
+
+      <form id="form-daily-sales" class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-neutral-700 mb-1">Date</label>
+            <input type="date" id="sale-date" required class="field text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-neutral-700 mb-1">Total Sales (THB)</label>
+            <input type="number" step="0.01" id="sale-total" required placeholder="0.00" class="field text-xs font-bold text-uno-red">
+          </div>
+        </div>
+
+        <div class="border-t border-neutral-100 pt-3">
+          <label class="block text-xs font-bold text-neutral-700 mb-2">Payment Breakdown (ช่องทางชำระเงิน)</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-[10px] text-neutral-500">Cash</label><input type="number" step="0.01" id="cash" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">Credit Card</label><input type="number" step="0.01" id="creditCard" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">QR Payment</label><input type="number" step="0.01" id="qrPayment" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">PromptPay</label><input type="number" step="0.01" id="promptPay" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">TrueMoney</label><input type="number" step="0.01" id="trueMoney" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">Bank Transfer</label><input type="number" step="0.01" id="bankTransfer" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">Line Pay</label><input type="number" step="0.01" id="linePay" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">Alipay</label><input type="number" step="0.01" id="alipay" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">Line Man</label><input type="number" step="0.01" id="lineMan" class="field text-xs" value="0"></div>
+            <div><label class="text-[10px] text-neutral-500">Grab</label><input type="number" step="0.01" id="grab" class="field text-xs" value="0"></div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100 flex justify-between items-center text-xs">
+          <span>Sum Breakdown: <strong id="val-sum" class="text-uno-charcoal">฿0.00</strong></span>
+          <span id="val-status" class="font-bold text-emerald-600">Total Sales ตรงกับ Sum Breakdown</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-neutral-700 mb-1">Void Bills (จำนวนบิลยกเลิก)</label>
+          <input type="number" id="sale-void" min="0" value="0" class="field text-xs">
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-neutral-100">
+          <button type="button" id="btn-cancel-sale" class="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs py-2.5 rounded-xl transition">ยกเลิก</button>
+          <button type="submit" class="flex-1 bg-uno-red hover:bg-red-700 text-white font-bold text-xs py-2.5 rounded-xl transition">บันทึกข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="modal-delete" class="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+      <div class="w-12 h-12 rounded-full bg-red-100 text-uno-red flex items-center justify-center mx-auto text-xl font-bold">!</div>
+      <h4 class="font-bold text-uno-charcoal text-base">ยืนยันการลบข้อมูล</h4>
+      <p class="text-xs text-neutral-500">คุณต้องการลบข้อมูลยอดขายของวันที่ <strong id="delete-date-target">-</strong> ใช่หรือไม่?</p>
+      <div class="flex gap-2 pt-2">
+        <button id="btn-cancel-delete" class="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs py-2.5 rounded-xl transition">ยกเลิก</button>
+        <button id="btn-confirm-delete" class="flex-1 bg-uno-red hover:bg-red-700 text-white font-bold text-xs py-2.5 rounded-xl transition">ยืนยันการลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App Source -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
+      --line: #e2e8f0;
+      --text: #111111;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Sarabun', 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    ::selection { background: #D93829; color: #ffffff; }
+    
+    .shadow-xs { box-shadow: 0 1px 2px rgba(17,17,17,.04), 0 8px 24px rgba(17,17,17,.04); }
+    .portal-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.03);
+      transition: all .2s ease;
+    }
+    .portal-card:hover { box-shadow: 0 14px 36px rgba(0,0,0,.05); }
+    .field {
+      width: 100%; padding: 11px 13px; border: 1px solid #e2e8f0; border-radius: 12px;
+      background: #ffffff; color: #111111; outline: none; transition: .18s ease;
+    }
+    .field:focus { border-color: #D93829; box-shadow: 0 0 0 3px rgba(217,56,41,.15); }
+    .primary-btn {
+      background: #D93829; color: #fff; border-radius: 12px; font-weight: 700;
+      transition: .18s ease;
+    }
+    .primary-btn:hover { background: #b82a1d; transform: translateY(-1px); }
+    .nav-btn { transition: .18s ease; }
+    .nav-btn.active { background: #D93829 !important; color: #fff !important; }
+    .pill { padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; display: inline-block; }
+  </style>
+</head>
+<body class="bg-slate-50 text-neutral-800 min-h-screen antialiased flex flex-col">
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4"></div>
+
+  <!-- Loading Overlay -->
+  <div id="global-loading" class="fixed inset-0 z-50 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center hidden">
+    <div class="bg-white p-5 rounded-2xl shadow-xl flex items-center gap-3">
+      <div class="w-6 h-6 border-3 border-uno-red border-t-transparent rounded-full animate-spin"></div>
+      <span class="text-xs font-bold text-neutral-700">กำลังโหลดข้อมูล...</span>
+    </div>
+  </div>
+
   <!-- Login Section -->
   <section id="login-section" class="fixed inset-0 z-40 bg-neutral-900/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
     <div class="w-full max-w-sm sm:max-w-md bg-white rounded-2xl sm:rounded-[24px] p-6 sm:p-9 shadow-2xl border border-neutral-100 my-auto">
