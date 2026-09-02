@@ -20,7 +20,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 /* =========================================================
-   FIREBASE
+   FIREBASE CONFIG & INIT
 ========================================================= */
 
 const firebaseConfig = {
@@ -37,14 +37,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 /* =========================================================
-   STATE
+   STATE MANAGEMENT
 ========================================================= */
 
 let currentUser = null;
-
-// Target Memory Map: key = "YYYY-MM"
 let monthTargets = {};
-
 let activeDeleteDate = null;
 let editingDate = null;
 
@@ -60,7 +57,7 @@ let reportTrendChart = null;
 let reportPieChart = null;
 
 /* =========================================================
-   PAYMENT CHANNELS
+   PAYMENT CHANNELS & LABELS
 ========================================================= */
 
 const channels = [
@@ -90,7 +87,7 @@ const channelLabels = {
 };
 
 /* =========================================================
-   HELPERS
+   HELPERS & UTILS
 ========================================================= */
 
 const $ = id => document.getElementById(id);
@@ -129,7 +126,6 @@ const dateFmt = date => {
 const daysInMonth = (year, month) =>
   new Date(year, month, 0).getDate();
 
-/* Helper: Get Target Satang for specific YYYY-MM */
 async function getMonthlyTargetSatang(monthKey) {
   if (monthTargets[monthKey] !== undefined) {
     return monthTargets[monthKey];
@@ -165,11 +161,11 @@ function setActivePage(id) {
     const isActive = button.dataset.page === id;
     button.classList.toggle("active", isActive);
     if (isActive) {
-      button.classList.remove("text-slate-500");
-      button.classList.add("text-slate-900", "bg-slate-100");
+      button.classList.remove("text-neutral-500");
+      button.classList.add("text-white", "bg-uno-red");
     } else {
-      button.classList.remove("text-slate-900", "bg-slate-100");
-      button.classList.add("text-slate-500");
+      button.classList.remove("text-white", "bg-uno-red");
+      button.classList.add("text-neutral-500");
     }
   });
 
@@ -206,10 +202,6 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-/* =========================================================
-   LOGIN & LOGOUT
-========================================================= */
-
 $("login-form")?.addEventListener("submit", async event => {
   event.preventDefault();
   $("login-error")?.classList.add("hidden");
@@ -236,7 +228,7 @@ if ($("btn-logout")) {
 }
 
 /* =========================================================
-   FIRESTORE SALES
+   FIRESTORE SALES DATA
 ========================================================= */
 
 async function getSales(from, to) {
@@ -272,7 +264,7 @@ async function getMonthSales() {
 }
 
 /* =========================================================
-   DASHBOARD
+   DASHBOARD LOGIC
 ========================================================= */
 
 async function loadDashboard() {
@@ -284,7 +276,6 @@ async function loadDashboard() {
     const month = now.getMonth() + 1;
     const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
 
-    // Target เดือนปัจจุบัน
     const monthlyTargetSatang = await getMonthlyTargetSatang(currentMonthKey);
     const totalDaysInMonth = daysInMonth(year, month);
     const dailyTargetSatang = totalDaysInMonth ? Math.round(monthlyTargetSatang / totalDaysInMonth) : 0;
@@ -297,7 +288,6 @@ async function loadDashboard() {
 
     const avg = recordDays ? Math.round(total / recordDays) : 0;
     const projection = dayOfMonth ? Math.round((total / dayOfMonth) * totalDaysInMonth) : 0;
-    const remaining = Math.max(0, monthlyTargetSatang - total);
 
     const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
 
@@ -336,7 +326,7 @@ async function loadDashboard() {
     if ($("dash-projection-status")) {
       const onTrack = projection >= monthlyTargetSatang;
       $("dash-projection-status").textContent = onTrack ? "On track" : "Below target";
-      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`;
+      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}`;
     }
 
     renderDashboardCharts(rows, channelTotals, total, monthlyTargetSatang, dailyTargetSatang);
@@ -348,7 +338,7 @@ async function loadDashboard() {
 }
 
 /* =========================================================
-   DASHBOARD CHARTS & ALERTS
+   CHARTS & VISUALS (UNO! BRANDED)
 ========================================================= */
 
 function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, dailyTargetSatang) {
@@ -368,8 +358,8 @@ function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, 
       data: {
         labels,
         datasets: [
-          { label: "Actual", data, borderColor: "#111827", backgroundColor: "rgba(17,24,39,.05)", fill: true, tension: 0.3, pointRadius: 2 },
-          { label: "Daily Target", data: labels.map(() => toTHB(dailyTargetSatang)), borderColor: "#94a3b8", borderDash: [5, 5], pointRadius: 0, tension: 0 }
+          { label: "Actual Sales", data, borderColor: "#D93829", backgroundColor: "rgba(217, 56, 41, 0.08)", fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: "#D93829" },
+          { label: "Daily Target", data: labels.map(() => toTHB(dailyTargetSatang)), borderColor: "#111111", borderDash: [4, 4], pointRadius: 0, tension: 0 }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -384,11 +374,11 @@ function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, 
         labels: ["Actual", "Remaining"],
         datasets: [{
           data: [toTHB(total), Math.max(0, toTHB(monthlyTargetSatang - total))],
-          backgroundColor: ["#111827", "#e5e7eb"],
+          backgroundColor: ["#D93829", "#E5E7EB"],
           borderWidth: 0
         }]
       },
-      options: { cutout: "72%", responsive: true, maintainAspectRatio: false }
+      options: { cutout: "75%", responsive: true, maintainAspectRatio: false }
     });
   }
 
@@ -401,7 +391,7 @@ function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, 
         labels: entries.map(([key]) => channelLabels[key] || key),
         datasets: [{
           data: entries.map(([, value]) => toTHB(value)),
-          backgroundColor: ["#111827", "#334155", "#475569", "#64748b", "#0f766e", "#15803d", "#a16207", "#b45309", "#7c3aed", "#be123c"],
+          backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"],
           borderWidth: 1
         }]
       },
@@ -413,10 +403,10 @@ function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, 
   if ($("dash-payment-summary")) {
     $("dash-payment-summary").innerHTML = entries.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([key, value]) => `
       <div class="flex justify-between text-xs">
-        <span class="text-slate-500">${esc(channelLabels[key] || key)}</span>
-        <strong>${money(value)} <span class="text-slate-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
+        <span class="text-neutral-500">${esc(channelLabels[key] || key)}</span>
+        <strong>${money(value)} <span class="text-neutral-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
       </div>
-    `).join("") || `<div class="text-xs text-slate-400">ยังไม่มีข้อมูล</div>`;
+    `).join("") || `<div class="text-xs text-neutral-400">ยังไม่มีข้อมูล</div>`;
   }
 }
 
@@ -430,7 +420,7 @@ function renderDashboardAlerts(rows, today, voids, projection, monthlyTargetSata
 
   if ($("dash-alerts")) {
     $("dash-alerts").innerHTML = alerts.map(([type, message]) => `
-      <div class="flex items-center gap-3 p-3 rounded-xl ${type === "danger" ? "bg-rose-50 text-rose-700" : type === "warning" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}">
+      <div class="flex items-center gap-3 p-3 rounded-xl ${type === "danger" ? "bg-red-50 text-uno-red border border-red-100" : type === "warning" ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-emerald-50 text-emerald-800 border border-emerald-100"}">
         <div class="flex-1 text-xs font-semibold">${esc(message)}</div>
       </div>
     `).join("");
@@ -447,16 +437,16 @@ function renderRecent(rows, dailyTargetSatang) {
       <td class="p-2 text-right font-bold">${money(row.totalSalesSatang)}</td>
       <td class="p-2 text-right">${dailyTargetSatang ? ((row.totalSalesSatang / dailyTargetSatang) * 100).toFixed(1) : 0}%</td>
       <td class="p-2 text-center">
-        <span class="pill ${row.totalSalesSatang >= dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}">
+        <span class="pill ${row.totalSalesSatang >= dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}">
           ${row.totalSalesSatang >= dailyTargetSatang ? "Above" : "Below"}
         </span>
       </td>
     </tr>
-  `).join("") || `<tr><td colspan="4" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>`;
+  `).join("") || `<tr><td colspan="4" class="p-4 text-center text-neutral-400">ยังไม่มีข้อมูล</td></tr>`;
 }
 
 /* =========================================================
-   SALE FORM MODAL & BREAKDOWN VALIDATION
+   SALE MODAL & FORM LOGIC
 ========================================================= */
 
 function updateFormValidation() {
@@ -469,7 +459,7 @@ function updateFormValidation() {
   
   if ($("val-status")) {
     $("val-status").textContent = isMatch ? "Total Sales ตรงกับ Sum Breakdown" : "Total Sales ไม่ตรงกับ Sum Breakdown";
-    $("val-status").className = `font-bold ${isMatch ? "text-emerald-600" : "text-amber-600"}`;
+    $("val-status").className = `font-bold ${isMatch ? "text-emerald-600" : "text-uno-red"}`;
   }
 }
 
@@ -500,10 +490,6 @@ $("btn-cancel-sale")?.addEventListener("click", closeSaleForm);
 
 $("sale-total")?.addEventListener("input", updateFormValidation);
 channels.forEach(ch => $(ch)?.addEventListener("input", updateFormValidation));
-
-/* =========================================================
-   SAVE DAILY SALE
-========================================================= */
 
 $("form-daily-sales")?.addEventListener("submit", async event => {
   event.preventDefault();
@@ -550,7 +536,7 @@ $("form-daily-sales")?.addEventListener("submit", async event => {
 });
 
 /* =========================================================
-   DAILY SALES & TARGET MANAGEMENT IN DAILY SALES
+   DAILY SALES & TARGETS
 ========================================================= */
 
 async function updateDailyTargetUI() {
@@ -578,7 +564,6 @@ async function updateDailyTargetUI() {
   }
 }
 
-// อัปเดตการคำนวณ Daily Target เมื่อแก้ไขยอด Monthly Target ใน Input
 $("daily-monthly-target-input")?.addEventListener("input", () => {
   const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
   const [y, m] = selectedMonth.split("-").map(Number);
@@ -590,7 +575,6 @@ $("daily-monthly-target-input")?.addEventListener("input", () => {
   if ($("daily-calc-target")) $("daily-calc-target").value = money(avgSatang);
 });
 
-// บันทึก Monthly Target ประจำเดือน
 $("btn-save-monthly-target")?.addEventListener("click", async () => {
   const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
   const monthlyTargetSatang = toSatang($("daily-monthly-target-input").value);
@@ -652,18 +636,18 @@ function renderDailyTable() {
 
   body.innerHTML = rows.map(row => `
     <tr>
-      <td class="p-3 font-bold">${dateFmt(row.date)}</td>
-      <td class="p-3 text-right font-extrabold">${money(row.totalSalesSatang)}</td>
+      <td class="p-3 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
+      <td class="p-3 text-right font-extrabold text-uno-red">${money(row.totalSalesSatang)}</td>
       ${channels.map(ch => `<td class="p-3 text-right">${money(row.payments?.[ch] || 0)}</td>`).join("")}
-      <td class="p-3 text-center font-bold ${row.voidBill ? "text-rose-600" : ""}">${row.voidBill || 0}</td>
-      <td class="p-3 text-[10px] text-slate-500">${esc(row.updatedBy || "N/A")}</td>
+      <td class="p-3 text-center font-bold ${row.voidBill ? "text-uno-red" : ""}">${row.voidBill || 0}</td>
+      <td class="p-3 text-[10px] text-neutral-500">${esc(row.updatedBy || "N/A")}</td>
       <td class="p-3 text-center whitespace-nowrap">
-        <button class="detail-btn text-indigo-600 font-bold mr-2" data-date="${row.date}">View</button>
-        <button class="edit-btn text-slate-700 font-bold mr-2" data-date="${row.date}">Edit</button>
-        <button class="delete-btn text-rose-600 font-bold" data-date="${row.date}">Delete</button>
+        <button class="detail-btn text-uno-charcoal font-bold mr-2 hover:underline" data-date="${row.date}">View</button>
+        <button class="edit-btn text-neutral-600 font-bold mr-2 hover:underline" data-date="${row.date}">Edit</button>
+        <button class="delete-btn text-uno-red font-bold hover:underline" data-date="${row.date}">Delete</button>
       </td>
     </tr>
-  `).join("") || `<tr><td colspan="15" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>`;
+  `).join("") || `<tr><td colspan="15" class="p-8 text-center text-neutral-400">ไม่พบข้อมูล</td></tr>`;
 
   if ($("daily-count")) $("daily-count").textContent = `${dailyFiltered.length} records`;
   if ($("daily-page-info")) $("daily-page-info").textContent = `Page ${dailyPage} / ${totalPages}`;
@@ -698,9 +682,9 @@ function showDetail(row) {
 
   if ($("detail-content")) {
     $("detail-content").innerHTML = items.map(([key, value]) => `
-      <div class="bg-slate-50 rounded-xl p-3">
-        <div class="text-[10px] text-slate-400">${esc(key)}</div>
-        <div class="text-sm font-extrabold mt-1">${esc(value)}</div>
+      <div class="bg-neutral-50 rounded-xl p-3 border border-neutral-100">
+        <div class="text-[10px] text-neutral-500">${esc(key)}</div>
+        <div class="text-sm font-extrabold mt-1 text-uno-charcoal">${esc(value)}</div>
       </div>
     `).join("");
   }
@@ -721,16 +705,16 @@ async function loadHistory() {
     const rows = await getSales("2000-01-01", "2099-12-31");
     tbody.innerHTML = rows.map(row => `
       <tr>
-        <td class="p-3.5 font-bold">${dateFmt(row.date)}</td>
-        <td class="p-3.5 text-right font-extrabold">${money(row.totalSalesSatang)}</td>
-        <td class="p-3.5 text-center font-bold ${row.voidBill ? "text-rose-600" : ""}">${row.voidBill || 0}</td>
-        <td class="p-3.5 text-[10px] text-slate-500">${esc(row.updatedBy || "N/A")}</td>
+        <td class="p-3.5 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
+        <td class="p-3.5 text-right font-extrabold text-uno-red">${money(row.totalSalesSatang)}</td>
+        <td class="p-3.5 text-center font-bold ${row.voidBill ? "text-uno-red" : ""}">${row.voidBill || 0}</td>
+        <td class="p-3.5 text-[10px] text-neutral-500">${esc(row.updatedBy || "N/A")}</td>
         <td class="p-3.5 text-center">
-          <button class="hist-edit text-indigo-600 font-bold mr-3" data-date="${row.date}">Edit</button>
-          <button class="hist-delete text-rose-600 font-bold" data-date="${row.date}">Delete</button>
+          <button class="hist-edit text-uno-charcoal font-bold mr-3 hover:underline" data-date="${row.date}">Edit</button>
+          <button class="hist-delete text-uno-red font-bold hover:underline" data-date="${row.date}">Delete</button>
         </td>
       </tr>
-    `).join("") || `<tr><td colspan="5" class="p-6 text-center text-slate-400">ไม่มีข้อมูล</td></tr>`;
+    `).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ไม่มีข้อมูล</td></tr>`;
 
     tbody.querySelectorAll(".hist-edit").forEach(b => b.onclick = () => {
       const row = rows.find(i => i.date === b.dataset.date);
@@ -738,7 +722,7 @@ async function loadHistory() {
     });
     tbody.querySelectorAll(".hist-delete").forEach(b => b.onclick = () => triggerDeleteModal(b.dataset.date));
   } catch (error) {
-    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500">${esc(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-uno-red">${esc(error.message)}</td></tr>`;
   }
 }
 
@@ -769,7 +753,7 @@ $("btn-confirm-delete")?.addEventListener("click", async () => {
 });
 
 /* =========================================================
-   REPORTS
+   REPORTS LOGIC
 ========================================================= */
 
 function defaultReportDates() {
@@ -790,7 +774,6 @@ async function loadReports() {
     const to = $("report-to").value;
     const rows = await getSales(from, to);
 
-    // ดึง Target รายเดือนสำหรับช่วงที่เลือก
     const fromMonth = from.slice(0, 7);
     const mTargetSatang = await getMonthlyTargetSatang(fromMonth);
     const [y, m] = fromMonth.split("-").map(Number);
@@ -835,8 +818,8 @@ function renderReportCharts(rows, channelTotals, dTargetSatang) {
       data: {
         labels,
         datasets: [
-          { label: "Actual", data: actual, backgroundColor: "#111827", borderRadius: 5 },
-          { label: "Daily Target", data: labels.map(() => toTHB(dTargetSatang)), type: "line", borderColor: "#94a3b8", pointRadius: 2, tension: 0 }
+          { label: "Actual", data: actual, backgroundColor: "#D93829", borderRadius: 4 },
+          { label: "Daily Target", data: labels.map(() => toTHB(dTargetSatang)), type: "line", borderColor: "#111111", pointRadius: 2, tension: 0 }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -853,7 +836,7 @@ function renderReportCharts(rows, channelTotals, dTargetSatang) {
         labels: entries.map(([key]) => channelLabels[key] || key),
         datasets: [{
           data: entries.map(([, value]) => toTHB(value)),
-          backgroundColor: ["#111827", "#334155", "#475569", "#64748b", "#0f766e", "#15803d", "#a16207", "#b45309", "#7c3aed", "#be123c"]
+          backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"]
         }]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -864,10 +847,10 @@ function renderReportCharts(rows, channelTotals, dTargetSatang) {
   if ($("report-payment-list")) {
     $("report-payment-list").innerHTML = entries.sort((a, b) => b[1] - a[1]).map(([key, value]) => `
       <div class="flex justify-between text-xs">
-        <span class="text-slate-500">${esc(channelLabels[key] || key)}</span>
-        <strong>${money(value)} <span class="text-slate-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
+        <span class="text-neutral-500">${esc(channelLabels[key] || key)}</span>
+        <strong>${money(value)} <span class="text-neutral-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
       </div>
-    `).join("") || `<div class="text-xs text-slate-400">ไม่มีข้อมูล</div>`;
+    `).join("") || `<div class="text-xs text-neutral-400">ไม่มีข้อมูล</div>`;
   }
 }
 
@@ -879,18 +862,18 @@ function renderRanking(rows, dTargetSatang) {
     const achievement = dTargetSatang ? (row.totalSalesSatang / dTargetSatang) * 100 : 0;
     return `
       <tr>
-        <td class="p-2 font-extrabold">#${index + 1}</td>
+        <td class="p-2 font-extrabold text-uno-charcoal">#${index + 1}</td>
         <td class="p-2 font-semibold">${dateFmt(row.date)}</td>
-        <td class="p-2 text-right font-extrabold">${money(row.totalSalesSatang)}</td>
+        <td class="p-2 text-right font-extrabold text-uno-red">${money(row.totalSalesSatang)}</td>
         <td class="p-2 text-right">${achievement.toFixed(1)}%</td>
         <td class="p-2 text-center">
-          <span class="pill ${achievement >= 100 ? "bg-emerald-50 text-emerald-700" : achievement >= 80 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"}">
+          <span class="pill ${achievement >= 100 ? "bg-emerald-50 text-emerald-700" : achievement >= 80 ? "bg-amber-50 text-amber-800" : "bg-red-50 text-uno-red"}">
             ${achievement >= 100 ? "Above Target" : achievement >= 80 ? "Near Target" : "Below Target"}
           </span>
         </td>
       </tr>
     `;
-  }).join("") || `<tr><td colspan="5" class="p-6 text-center text-slate-400">ไม่มีข้อมูล</td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ไม่มีข้อมูล</td></tr>`;
 }
 
 function renderInsights(rows, total, target, voids, achievement, dTargetSatang) {
@@ -906,9 +889,9 @@ function renderInsights(rows, total, target, voids, achievement, dTargetSatang) 
 
   if ($("report-insights")) {
     $("report-insights").innerHTML = insights.map((text, index) => `
-      <div class="flex gap-3 p-3 bg-slate-50 rounded-xl">
-        <span class="w-6 h-6 rounded-lg bg-white border flex items-center justify-center text-[10px] font-extrabold shrink-0">${index + 1}</span>
-        <p class="text-xs text-slate-600 leading-relaxed">${text}</p>
+      <div class="flex gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+        <span class="w-6 h-6 rounded-lg bg-uno-red text-white flex items-center justify-center text-[10px] font-extrabold shrink-0">${index + 1}</span>
+        <p class="text-xs text-neutral-600 leading-relaxed">${text}</p>
       </div>
     `).join("");
   }
