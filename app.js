@@ -1,10 +1,4 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 import {
   getFirestore,
@@ -33,14 +27,12 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
 /* =========================================================
    STATE MANAGEMENT
 ========================================================= */
 
-let currentUser = null;
 let monthTargets = {};
 let activeDeleteDate = null;
 let editingDate = null;
@@ -181,51 +173,6 @@ document.querySelectorAll(".nav-btn").forEach(button => {
     if (pageId) setActivePage(pageId);
   });
 });
-
-/* =========================================================
-   AUTH
-========================================================= */
-
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    currentUser = user;
-    if ($("user-display")) $("user-display").textContent = user.email || "Manager";
-    if ($("admin-display-email")) $("admin-display-email").textContent = user.email || "Manager";
-
-    $("login-section")?.classList.add("hidden");
-    $("app-section")?.classList.remove("hidden");
-
-    loadDashboard();
-  } else {
-    $("login-section")?.classList.remove("hidden");
-    $("app-section")?.classList.add("hidden");
-  }
-});
-
-$("login-form")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  $("login-error")?.classList.add("hidden");
-  if ($("btn-login")) $("btn-login").disabled = true;
-
-  try {
-    await signInWithEmailAndPassword(
-      auth,
-      $("login-email").value,
-      $("login-password").value
-    );
-  } catch (error) {
-    if ($("login-error")) {
-      $("login-error").textContent = "เข้าสู่ระบบไม่สำเร็จ: " + error.message;
-      $("login-error").classList.remove("hidden");
-    }
-  } finally {
-    if ($("btn-login")) $("btn-login").disabled = false;
-  }
-});
-
-if ($("btn-logout")) {
-  $("btn-logout").onclick = () => signOut(auth);
-}
 
 /* =========================================================
    FIRESTORE SALES DATA
@@ -513,14 +460,14 @@ $("form-daily-sales")?.addEventListener("submit", async event => {
     payments,
     voidBill: parseInt($("sale-void")?.value || 0, 10),
     updatedAt: serverTimestamp(),
-    updatedBy: currentUser?.email || currentUser?.uid || "unknown"
+    updatedBy: "System"
   };
 
   try {
     const existing = await getDoc(doc(db, "sales", date));
     if (!existing.exists()) {
       payload.createdAt = serverTimestamp();
-      payload.createdBy = currentUser?.email || currentUser?.uid || "unknown";
+      payload.createdBy = "System";
     }
 
     await setDoc(doc(db, "sales", date), payload, { merge: true });
@@ -584,7 +531,7 @@ $("btn-save-monthly-target")?.addEventListener("click", async () => {
       monthKey: selectedMonth,
       monthlyTargetSatang,
       updatedAt: serverTimestamp(),
-      updatedBy: currentUser?.email || currentUser?.uid || "unknown"
+      updatedBy: "System"
     });
 
     monthTargets[selectedMonth] = monthlyTargetSatang;
@@ -906,4 +853,6 @@ $("btn-admin-clear-cache")?.addEventListener("click", () => {
   alert("ทำการรีเฟรชข้อมูลสำเร็จ");
 });
 
+// เริ่มต้นโหลดข้อมูล
 defaultReportDates();
+loadDashboard();
