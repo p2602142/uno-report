@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Performance Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 min-h-screen">
+    <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
+        
+        <!-- Section 1: Login Form -->
+        <div id="login-section">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">เข้าสู่ระบบ</h2>
+            <input type="email" id="email" placeholder="Email" class="w-full p-2 border rounded mb-3">
+            <input type="password" id="password" placeholder="Password" class="w-full p-2 border rounded mb-4">
+            <button id="btn-login" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Login</button>
+            <p id="login-error" class="text-red-500 text-sm mt-2 hidden"></p>
+        </div>
+
+        <!-- Section 2: App Content (Hidden before login) -->
+        <div id="app-section" class="hidden">
+            <div class="flex justify-between items-center mb-6 border-b pb-3">
+                <h1 class="text-lg font-bold text-gray-800">รายงานยอดขายรายวัน</h1>
+                <button id="btn-logout" class="text-xs bg-gray-200 px-2 py-1 rounded">Logout</button>
+            </div>
+
+            <!-- Input Form -->
+            <form id="sales-form" class="space-y-3">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">วันที่ (YYYY-MM-DD)</label>
+                    <input type="date" id="sales-date" required class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">ยอดขายรวม (Sale THB)</label>
+                    <input type="number" id="total-sales" step="0.01" required class="w-full p-2 border rounded font-semibold">
+                </div>
+
+                <div class="border-t pt-3">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">ช่องทางการชำระเงิน</label>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>Cash: <input type="number" step="0.01" id="pay-cash" class="w-full p-1 border rounded" value="0"></div>
+                        <div>Credit Card: <input type="number" step="0.01" id="pay-credit" class="w-full p-1 border rounded" value="0"></div>
+                        <div>QR Payment: <input type="number" step="0.01" id="pay-qr" class="w-full p-1 border rounded" value="0"></div>
+                        <div>Line Man: <input type="number" step="0.01" id="pay-lineman" class="w-full p-1 border rounded" value="0"></div>
+                        <div>Grab: <input type="number" step="0.01" id="pay-grab" class="w-full p-1 border rounded" value="0"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 mt-4">บันทึกข้อมูล</button>
+            </form>
+
+            <!-- Dashboard Display -->
+            <div class="mt-8 border-t pt-4">
+                <button id="btn-load-report" class="w-full bg-gray-800 text-white py-2 rounded text-sm mb-4">ดึงรายงานประจำเป็นวัน</button>
+                
+                <div id="report-view" class="bg-gray-50 p-4 rounded hidden space-y-2">
+                    <div class="flex justify-between border-b pb-2">
+                        <span class="text-gray-600">ยอดขายประจำวัน:</span>
+                        <span id="res-daily" class="font-bold text-gray-800">0.00 THB</span>
+                    </div>
+                    <div class="flex justify-between border-b pb-2">
+                        <span class="text-gray-600">ยอดสะสม MTD:</span>
+                        <span id="res-mtd" class="font-bold text-blue-600">0.00 THB</span>
+                    </div>
+                    <div class="pt-2">
+                        <span class="text-xs text-gray-500 font-semibold block mb-1">Payment Breakdown:</span>
+                        <ul id="res-payments" class="text-xs space-y-1 text-gray-600"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="./app.js"></script>
+</body>
+</html>
