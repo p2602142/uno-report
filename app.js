@@ -32,10 +32,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// DOM Helper Function
+// Helper Functions
 const getEl = (id) => document.getElementById(id);
 
-// Safe Toggle Display Class
 const setVisible = (element, isVisible) => {
     if (!element) return;
     if (isVisible) {
@@ -47,13 +46,13 @@ const setVisible = (element, isVisible) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 1. Set Default Date Picker Value to Today (YYYY-MM-DD)
+    // Set Default Date to Today
     const salesDateEl = getEl('sales-date');
     if (salesDateEl) {
         salesDateEl.value = new Date().toISOString().split('T')[0];
     }
 
-    // 2. Authentication State Observer
+    // Auth State
     onAuthStateChanged(auth, (user) => {
         const loginSection = getEl('login-section');
         const appSection = getEl('app-section');
@@ -69,17 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. User Login Event
+    // Login Event
     const btnLogin = getEl('btn-login');
     if (btnLogin) {
         btnLogin.addEventListener('click', async (e) => {
             e.preventDefault();
-            const emailInput = getEl('email');
-            const passwordInput = getEl('password');
+            const email = getEl('email')?.value.trim() || '';
+            const password = getEl('password')?.value || '';
             const loginError = getEl('login-error');
-
-            const email = emailInput?.value.trim() || '';
-            const password = passwordInput?.value || '';
 
             setVisible(loginError, false);
 
@@ -102,13 +98,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. User Logout Event
+    // Logout Event
     const btnLogout = getEl('btn-logout');
     if (btnLogout) {
         btnLogout.addEventListener('click', () => signOut(auth));
     }
 
-    // 5. Save Daily Sales Event
+    // Save Daily Sales Event
     const salesForm = getEl('sales-form');
     if (salesForm) {
         salesForm.addEventListener('submit', async (e) => {
@@ -116,16 +112,23 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const dateStr = getEl('sales-date')?.value;
             const totalSales = parseFloat(getEl('total-sales')?.value) || 0;
+            const voidBills = parseInt(getEl('pay-void')?.value, 10) || 0;
 
             if (!dateStr) {
                 alert("กรุณาเลือกวันที่ก่อนบันทึกข้อมูล");
                 return;
             }
 
+            // Payment List ตามฟอร์มของคุณ
             const payments = {
                 "Cash": parseFloat(getEl('pay-cash')?.value) || 0,
                 "Credit Card": parseFloat(getEl('pay-credit')?.value) || 0,
                 "QR Payment": parseFloat(getEl('pay-qr')?.value) || 0,
+                "PromptPay": parseFloat(getEl('pay-promptpay')?.value) || 0,
+                "TrueMoney": parseFloat(getEl('pay-truemoney')?.value) || 0,
+                "Bank Transfer": parseFloat(getEl('pay-banktransfer')?.value) || 0,
+                "Line Pay": parseFloat(getEl('pay-linepay')?.value) || 0,
+                "Alipay": parseFloat(getEl('pay-alipay')?.value) || 0,
                 "Line Man": parseFloat(getEl('pay-lineman')?.value) || 0,
                 "Grab": parseFloat(getEl('pay-grab')?.value) || 0
             };
@@ -134,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await setDoc(doc(db, "daily_sales", dateStr), {
                     sales_date: dateStr,
                     total_sales: totalSales,
+                    void_bills: voidBills,
                     payments: payments,
                     updated_at: serverTimestamp()
                 });
@@ -144,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Load Daily Report & Calculate MTD Event
+    // Load Daily Report Event
     const btnLoadReport = getEl('btn-load-report');
     if (btnLoadReport) {
         btnLoadReport.addEventListener('click', async () => {
@@ -157,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                // Fetch Selected Date's Sales Summary
                 const docRef = doc(db, "daily_sales", dateStr);
                 const docSnap = await getDoc(docRef);
 
@@ -169,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const dailyData = docSnap.data();
 
-                // Compute MTD (Sum total_sales from 1st of the month to selected date)
+                // คำนวณ MTD
                 const firstDayOfMonthStr = dateStr.substring(0, 7) + "-01";
                 const mtdQuery = query(
                     collection(db, "daily_sales"),
@@ -183,10 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     mtdTotal += Number(d.data().total_sales) || 0;
                 });
 
-                // Render Results to UI Safely
+                // แสดงผลในหน้า UI
                 const resDaily = getEl('res-daily');
                 const resMtd = getEl('res-mtd');
+                const resVoid = getEl('res-void');
                 const resPayments = getEl('res-payments');
+                const topChannel = getEl('top-channel');
 
                 if (resDaily) {
                     resDaily.textContent = (dailyData.total_sales || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " THB";
@@ -196,18 +201,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     resMtd.textContent = mtdTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " THB";
                 }
 
+                if (resVoid) {
+                    resVoid.textContent = (dailyData.void_bills || 0) + " BILL";
+                }
+
                 if (resPayments) {
                     resPayments.innerHTML = '';
+                    let maxAmount = -1;
+                    let topMethodName = '-';
+
                     if (dailyData.payments) {
                         for (const [method, amount] of Object.entries(dailyData.payments)) {
-                            if (amount > 0) {
-                                const li = document.createElement('li');
-                                li.className = 'flex justify-between border-b border-gray-100 py-1';
-                                li.innerHTML = `<span>${method}:</span> <span class="font-medium">${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>`;
-                                resPayments.appendChild(li);
+                            if (amount > maxAmount && amount > 0) {
+                                maxAmount = amount;
+                                topMethodName = method;
                             }
+
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between border-b border-slate-100 py-1.5';
+                            li.innerHTML = `
+                                <span class="font-medium text-slate-600">${method}</span>
+                                <span class="font-semibold text-slate-800">${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>
+                            `;
+                            resPayments.appendChild(li);
                         }
                     }
+
+                    if (topChannel) topChannel.textContent = topMethodName;
                 }
 
                 setVisible(reportView, true);
