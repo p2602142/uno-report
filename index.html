@@ -12,30 +12,110 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Sarabun', 'Plus Jakarta Sans', sans-serif; }
-    </style>
+    
+<style>
+:root{
+  --brand:#111827;
+  --brand-2:#1f2937;
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --line:#e8ecf2;
+  --muted:#667085;
+  --text:#101828;
+  --success:#12b76a;
+  --danger:#f04438;
+  --warning:#f79009;
+  --radius:18px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Sarabun','Plus Jakarta Sans',sans-serif;
+  background:
+    radial-gradient(circle at 90% -10%, rgba(99,102,241,.07), transparent 28rem),
+    var(--bg);
+  color:var(--text);
+}
+button,input{font:inherit}
+button{cursor:pointer}
+::selection{background:#dbeafe;color:#0f172a}
+.shadow-xs{box-shadow:0 1px 2px rgba(16,24,40,.03),0 8px 24px rgba(16,24,40,.035)}
+#login-section{
+  background:
+    radial-gradient(circle at 15% 15%, rgba(99,102,241,.13), transparent 30rem),
+    radial-gradient(circle at 85% 85%, rgba(16,185,129,.09), transparent 26rem),
+    #f8fafc;
+}
+.login-shell{animation:rise .45s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.portal-card{
+  background:rgba(255,255,255,.88);
+  border:1px solid rgba(226,232,240,.9);
+  border-radius:22px;
+  box-shadow:0 10px 35px rgba(15,23,42,.045);
+  transition:box-shadow .2s ease,border-color .2s ease,transform .2s ease;
+}
+.portal-card:hover{box-shadow:0 14px 42px rgba(15,23,42,.065)}
+.kpi-card{
+  position:relative;overflow:hidden;
+  background:#fff;border:1px solid var(--line);border-radius:18px;
+  padding:20px;box-shadow:0 1px 2px rgba(16,24,40,.02);
+}
+.kpi-card:after{
+  content:"";position:absolute;right:-28px;top:-28px;width:90px;height:90px;
+  border-radius:999px;background:#f8fafc;
+}
+.kpi-label{color:#667085;font-size:12px;font-weight:600;letter-spacing:.01em}
+.kpi-value{font-size:28px;line-height:1.1;font-weight:800;letter-spacing:-.025em;color:#101828}
+.field{
+  width:100%;padding:11px 13px;border:1px solid #e4e7ec;border-radius:12px;
+  background:#f9fafb;color:#101828;outline:none;transition:.18s ease;
+}
+.field:hover{border-color:#d0d5dd;background:#fff}
+.field:focus{border-color:#98a2b3;background:#fff;box-shadow:0 0 0 4px rgba(15,23,42,.055)}
+.primary-btn{
+  background:#111827;color:#fff;border-radius:12px;font-weight:700;
+  box-shadow:0 1px 2px rgba(16,24,40,.18);transition:.18s ease;
+}
+.primary-btn:hover{background:#1f2937;transform:translateY(-1px);box-shadow:0 5px 16px rgba(16,24,40,.16)}
+.primary-btn:active{transform:translateY(0)}
+.nav-btn{transition:.18s ease}
+.nav-btn[data-page].active{background:#111827!important;color:#fff!important;box-shadow:0 2px 7px rgba(15,23,42,.12)}
+.table-row-hover:hover{background:#fafbfc}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.page-content{animation:pageIn .25s ease both}
+@keyframes pageIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+input[type=number]::-webkit-inner-spin-button{opacity:.5}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-track{background:transparent}
+@media (max-width:768px){
+  .kpi-value{font-size:24px}
+  main{padding-bottom:28px}
+}
+</style>
+
 </head>
 <body class="bg-slate-50 text-slate-700 min-h-screen antialiased">
 
     <!-- ================= Login Section ================= -->
     <section id="login-section" class="fixed inset-0 z-50 bg-slate-100 flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-slate-200">
+        <div class="login-shell w-full max-w-md bg-white/95 backdrop-blur rounded-[24px] p-8 sm:p-9 shadow-2xl border border-white/80">
             <div class="text-center space-y-2 mb-6">
-                <span class="inline-block px-3 py-1 bg-slate-100 text-slate-600 font-bold text-xs rounded-full">UN10021_CNV</span>
-                <h2 class="text-2xl font-bold text-slate-800">Sales Performance Portal</h2>
-                <p class="text-xs text-slate-400">กรุณาเข้าสู่ระบบด้วยบัญชีผู้จัดการ</p>
+                <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white font-bold text-[11px] tracking-wide rounded-full shadow-sm">UN10021_CNV</span>
+                <h2 class="text-[27px] leading-tight font-extrabold tracking-tight text-slate-900">Sales Performance Portal</h2>
+                <p class="text-xs text-slate-500">กรุณาเข้าสู่ระบบด้วยบัญชีผู้จัดการ</p>
             </div>
-            <form id="login-form" class="space-y-4">
+            <form id="login-form" class="space-y-5">
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Email Manager</label>
-                    <input type="email" id="login-email" required placeholder="manager@email.com" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition">
+                    <input autocomplete="username" type="email" id="login-email" required placeholder="manager@email.com" class="field text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Password</label>
-                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition">
+                    <input autocomplete="current-password" type="password" id="login-password" required placeholder="••••••••" class="field text-sm">
                 </div>
-                <button type="submit" id="btn-login" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm py-3 rounded-xl transition duration-200 shadow-md">เข้าสู่ระบบ</button>
+                <button type="submit" id="btn-login" class="primary-btn w-full text-sm py-3">เข้าสู่ระบบ</button>
                 <p id="login-error" class="text-rose-500 text-xs text-center mt-2 hidden"></p>
             </form>
         </div>
@@ -45,19 +125,19 @@
     <div id="app-section" class="hidden min-h-screen flex flex-col">
         
         <!-- Header & Nav Bar -->
-        <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <header class="bg-white/90 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[68px] flex items-center justify-between">
                 <div class="flex items-center gap-6">
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm">S</div>
+                        <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm shadow-sm">S</div>
                         <div>
-                            <span class="font-bold text-slate-800 text-sm block leading-none">Sales Portal</span>
-                            <span class="text-[10px] text-slate-400">UN10021_CNV</span>
+                            <span class="font-extrabold text-slate-900 text-sm block leading-none tracking-tight">Sales Portal</span>
+                            <span class="text-[10px] text-slate-500 font-medium">UN10021_CNV</span>
                         </div>
                     </div>
                     <!-- Navigation Tabs -->
                     <nav class="hidden md:flex items-center gap-1">
-                        <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-900 bg-slate-100" data-page="page-dashboard">Dashboard</button>
+                        <button class="nav-btn active px-3 py-2 rounded-lg text-xs font-bold text-slate-900 bg-slate-100" data-page="page-dashboard">Dashboard</button>
                         <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-daily">Daily Sales</button>
                         <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-history">History</button>
                         <button class="nav-btn px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900" data-page="page-reports">Reports</button>
@@ -67,7 +147,7 @@
 
                 <div class="flex items-center gap-3">
                     <span id="user-display" class="text-xs font-medium text-slate-600 hidden sm:inline">manager@email.com</span>
-                    <button id="btn-logout" class="text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition">ออกจากระบบ</button>
+                    <button id="btn-logout" class="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-2 rounded-xl transition">ออกจากระบบ</button>
                 </div>
             </div>
             <!-- Mobile Navigation -->
@@ -81,27 +161,37 @@
         </header>
 
         <!-- Main Workspace -->
-        <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1">
+        <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-7 sm:py-8 flex-1">
+            <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[.14em] text-slate-400">Sales Operations</p>
+                    <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 mt-1">Performance overview</h1>
+                </div>
+                <div class="inline-flex items-center gap-2 self-start sm:self-auto rounded-full bg-white border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-500 shadow-sm">
+                    <span class="status-dot bg-emerald-500"></span>
+                    Live workspace
+                </div>
+            </div>
             
             <!-- 1. PAGE: DASHBOARD -->
             <section id="page-dashboard" class="page-content space-y-6">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="portal-card p-5">
                         <span class="text-xs font-medium text-slate-400 block mb-1">Today's Sales</span>
-                        <div id="dash-today-sales" class="text-2xl font-bold text-slate-800">฿0</div>
+                        <div id="dash-today-sales" class="text-[27px] leading-tight font-extrabold tracking-tight text-slate-900">฿0</div>
                         <span id="dash-today-target" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="portal-card p-5">
                         <span class="text-xs font-medium text-slate-400 block mb-1">MTD Sales</span>
-                        <div id="dash-mtd-sales" class="text-2xl font-bold text-slate-800">฿0</div>
+                        <div id="dash-mtd-sales" class="text-[27px] leading-tight font-extrabold tracking-tight text-slate-900">฿0</div>
                         <span id="dash-mtd-target" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="portal-card p-5">
                         <span class="text-xs font-medium text-slate-400 block mb-1">Avg / Day</span>
-                        <div id="dash-avg-day" class="text-2xl font-bold text-slate-800">฿0</div>
+                        <div id="dash-avg-day" class="text-[27px] leading-tight font-extrabold tracking-tight text-slate-900">฿0</div>
                         <span class="text-xs text-slate-400 mt-2 block">คำนวณจากวันที่บันทึก</span>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="portal-card p-5">
                         <span class="text-xs font-medium text-slate-400 block mb-1">Void Bills</span>
                         <div id="dash-void-bills" class="text-2xl font-bold text-rose-600">0 Bills</div>
                         <span class="text-xs text-slate-400 mt-2 block">สะสมในเดือนนี้</span>
@@ -207,10 +297,10 @@
 
             <!-- 3. PAGE: HISTORY -->
             <section id="page-history" class="page-content hidden space-y-4">
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <div class="portal-card overflow-hidden">
                     <div class="p-4 border-b border-slate-100 flex justify-between items-center">
                         <h3 class="font-bold text-slate-800 text-sm">ประวัติบันทึกยอดขาย (Sales Records)</h3>
-                        <span class="text-xs text-slate-400">เรียงจากล่าสุด</span>
+                        <span class="text-xs text-slate-500">เรียงจากล่าสุด</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs text-slate-600">
@@ -223,7 +313,7 @@
                                     <th class="p-3.5 text-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-history-body" class="divide-y divide-slate-100">
+                            <tbody id="table-history-body" class="divide-y divide-slate-100 table-row-hover">
                                 <tr><td colspan="5" class="p-4 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>
                             </tbody>
                         </table>
@@ -233,7 +323,7 @@
 
             <!-- 4. PAGE: REPORTS -->
             <section id="page-reports" class="page-content hidden space-y-6">
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                <div class="portal-card p-5">
                     <h3 class="font-bold text-slate-800 text-sm mb-2">Monthly Performance Summary</h3>
                     <p class="text-xs text-slate-400 mb-4">รายงานภาพรวมสถิติรายเดือนและสัดส่วนช่องทางชำระเงิน</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -284,6 +374,9 @@
             </section>
 
         </main>
+        <footer class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-6 text-[11px] text-slate-400 flex justify-between gap-4">
+            <span>Sales Performance Portal</span><span>Branch UN10021_CNV</span>
+        </footer>
     </div>
 
     <!-- Delete Confirmation Modal -->
