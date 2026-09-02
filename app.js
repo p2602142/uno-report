@@ -153,11 +153,11 @@ function setActivePage(id) {
     const isActive = button.dataset.page === id;
     button.classList.toggle("active", isActive);
     if (isActive) {
-      button.classList.remove("text-neutral-500");
+      button.classList.remove("text-neutral-300");
       button.classList.add("text-white", "bg-uno-red");
     } else {
       button.classList.remove("text-white", "bg-uno-red");
-      button.classList.add("text-neutral-500");
+      button.classList.add("text-neutral-300");
     }
   });
 
@@ -179,23 +179,28 @@ document.querySelectorAll(".nav-btn").forEach(button => {
 ========================================================= */
 
 async function getSales(from, to) {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "sales"),
-      where("date", ">=", from),
-      where("date", "<=", to)
-    )
-  );
+  try {
+    const snapshot = await getDocs(
+      query(
+        collection(db, "sales"),
+        where("date", ">=", from),
+        where("date", "<=", to)
+      )
+    );
 
-  const rows = [];
-  snapshot.forEach(document => {
-    rows.push({
-      ...document.data(),
-      _id: document.id
+    const rows = [];
+    snapshot.forEach(document => {
+      rows.push({
+        ...document.data(),
+        _id: document.id
+      });
     });
-  });
 
-  return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  } catch (error) {
+    console.error("Error getting sales:", error);
+    return [];
+  }
 }
 
 async function getMonthSales() {
@@ -285,7 +290,7 @@ async function loadDashboard() {
 }
 
 /* =========================================================
-   CHARTS & VISUALS (UNO! BRANDED)
+   CHARTS & VISUALS
 ========================================================= */
 
 function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, dailyTargetSatang) {
@@ -853,6 +858,13 @@ $("btn-admin-clear-cache")?.addEventListener("click", () => {
   alert("ทำการรีเฟรชข้อมูลสำเร็จ");
 });
 
-// เริ่มต้นโหลดข้อมูล
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+// สั่งเปิดหน้า Dashboard เป็นหน้าแรก
+setActivePage("page-dashboard");
+
+// เริ่มต้นเตรียมวันที่รายงาน และโหลดข้อมูล
 defaultReportDates();
-loadDashboard();
+loadDashboard().catch(err => console.error("Initial load error:", err));
