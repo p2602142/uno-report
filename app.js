@@ -1,2736 +1,641 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+/**
+ * UNO! COFFEE COMPANY - Sales Performance Portal
+ * Branch: UN1021-CNV
+ */
 
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-/* =========================================================
-   FIREBASE CONFIG & INIT
-========================================================= */
-
-const firebaseConfig = {
-  apiKey: "AIzaSyA_0BTgJcF8Q4HSNEJbOxQH3fMXtFVsMks",
-  authDomain: "sale-performance-report.firebaseapp.com",
-  projectId: "sale-performance-report",
-  storageBucket: "sale-performance-report.firebasestorage.app",
-  messagingSenderId: "936685375762",
-  appId: "1:936685375762:web:235f96930f74d898d163cb"
+// ==========================================
+// Global State Management
+// ==========================================
+const state = {
+  currentBranch: 'UN1021-CNV',
+  currentUser: 'Staff (UN1021-CNV)',
+  currentPage: 'page-dashboard',
+  salesData: [],
+  monthlyTargets: {}, // { 'YYYY-MM': targetValue }
+  pagination: {
+    currentPage: 1,
+    pageSize: 10,
+    filteredData: []
+  },
+  charts: {},
+  deleteTargetDate: null
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-/* =========================================================
-   STATE MANAGEMENT
-========================================================= */
-
-let currentUser = null;
-let monthTargets = {};
-let activeDeleteDate = null;
-let editingDate = null;
-
-let dailyFiltered = [];
-let dailyPage = 1;
-const PAGE_SIZE = 10;
-
-let trendChart = null;
-let mixChart = null;
-let targetChart = null;
-let reportTrendChart = null;
-let reportPieChart = null;
-
-/* =========================================================
-   CONSTANTS & LABELS
-========================================================= */
-
-const channels = [
-  "cash",
-  "creditCard",
-  "qrPayment",
-  "promptPay",
-  "trueMoney",
-  "bankTransfer",
-  "linePay",
-  "alipay",
-  "lineMan",
-  "grab"
+// ==========================================
+// Initial Sample Data (Seed Data)
+// ==========================================
+const initialSalesSeed = [
+  {
+    date: '2026-09-01',
+    totalSales: 15450,
+    cash: 3000,
+    creditCard: 2450,
+    qrPayment: 2000,
+    promptPay: 3000,
+    trueMoney: 1000,
+    bankTransfer: 0,
+    linePay: 1000,
+    alipay: 0,
+    lineMan: 1500,
+    grab: 1500,
+    voidBills: 2,
+    updatedBy: 'Staff (UN1021-CNV)',
+    lastUpdated: '2026-09-01 20:30'
+  },
+  {
+    date: '2026-09-02',
+    totalSales: 18200,
+    cash: 4000,
+    creditCard: 3200,
+    qrPayment: 2500,
+    promptPay: 3500,
+    trueMoney: 1000,
+    bankTransfer: 500,
+    linePay: 500,
+    alipay: 0,
+    lineMan: 1500,
+    grab: 1500,
+    voidBills: 0,
+    updatedBy: 'Staff (UN1021-CNV)',
+    lastUpdated: '2026-09-02 20:45'
+  }
 ];
 
-const channelLabels = {
-  cash: "Cash",
-  creditCard: "Credit Card",
-  qrPayment: "QR Payment",
-  promptPay: "PromptPay",
-  trueMoney: "TrueMoney",
-  bankTransfer: "Bank Transfer",
-  linePay: "Line Pay",
-  alipay: "Alipay",
-  lineMan: "Line Man",
-  grab: "Grab"
-};
-
-/* =========================================================
-   HYBRID DATA MAPPER & CONVERTER
-========================================================= */
-
-const $ = id => document.getElementById(id);
-
-const inputToSatang = value => Math.round((parseFloat(value) || 0) * 100);
-
-const parseTHB = value => {
-  const num = parseFloat(value) || 0;
-  if (num > 1000000) return num / 100;
-  return num;
-};
-
-const parseSatang = value => Math.round(parseTHB(value) * 100);
-
-const money = valueInBahtOrSatang => {
-  const baht = parseTHB(valueInBahtOrSatang);
-  return "฿" + baht.toLocaleString("th-TH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
-const esc = value =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    }[char])
-  );
-
-const dateFmt = date => {
-  if (!date) return "—";
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
-};
-
-const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
-
-function showLoading(show = true) {
-  const loader = $("global-loading");
-  if (loader) {
-    if (show) loader.classList.remove("hidden");
-    else loader.classList.add("hidden");
-  }
-}
-
-function showToast(message, type = "info") {
-  const container = $("toast-container");
-  if (!container) return;
-
-  const toast = document.createElement("div");
-  const bg =
-    type === "success"
-      ? "bg-emerald-600"
-      : type === "error"
-      ? "bg-uno-red"
-      : "bg-neutral-800";
-
-  toast.className = `${bg} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto flex items-center justify-between gap-2`;
-  toast.innerHTML = `<span>${esc(message)}</span><button class="opacity-70 hover:opacity-100 font-bold ml-2">✕</button>`;
-
-  toast.querySelector("button").onclick = () => toast.remove();
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.remove("opacity-0", "translate-y-2");
-  }, 10);
-
-  setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
-}
-
-function normalizeDocument(raw) {
-  const total = raw.totalSalesSatang ?? raw.totalSales ?? raw.total_sales ?? 0;
-  const voidBill = raw.voidBill ?? raw.void_bill ?? raw.voidCount ?? 0;
+// ==========================================
+// App Initialization
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+  initStorage();
+  initEventListeners();
+  initCharts();
   
-  const payments = {};
-  channels.forEach(ch => {
-    payments[ch] = parseSatang(raw.payments?.[ch] ?? raw[ch] ?? 0);
-  });
+  // ตั้งค่าวันที่เริ่มต้นให้กับ Form / Inputs
+  const today = new Date().toISOString().split('T')[0];
+  const currentMonth = today.substring(0, 7);
+  
+  document.getElementById('sale-date').value = today;
+  document.getElementById('daily-month').value = currentMonth;
+  document.getElementById('report-from').value = `${currentMonth}-01`;
+  document.getElementById('report-to').value = today;
 
-  return {
-    date: raw.date || raw._id,
-    totalSalesSatang: parseSatang(total),
-    totalSalesBaht: parseTHB(total),
-    payments,
-    voidBill: parseInt(voidBill, 10) || 0,
-    updatedBy: raw.updatedBy || raw.createdBy || "System",
-    updatedAt: raw.updatedAt || null
-  };
-}
-
-async function getMonthlyTargetSatang(monthKey) {
-  if (monthTargets[monthKey] !== undefined) {
-    return monthTargets[monthKey];
-  }
-  try {
-    const docSnap = await getDoc(doc(db, "targets", monthKey));
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const val = data.monthlyTargetSatang ?? data.monthlyTarget ?? data.target ?? 0;
-      monthTargets[monthKey] = parseSatang(val);
-    } else {
-      monthTargets[monthKey] = 0;
-    }
-  } catch (e) {
-    console.error("Fetch target error:", e);
-    monthTargets[monthKey] = 0;
-  }
-  return monthTargets[monthKey];
-}
-
-/* =========================================================
-   PAGE NAVIGATION
-========================================================= */
-
-function setActivePage(id) {
-  document.querySelectorAll(".page").forEach(page => {
-    page.classList.toggle("hidden", page.id !== id);
-  });
-
-  document.querySelectorAll(".nav-btn").forEach(button => {
-    const isActive = button.dataset.page === id;
-    button.classList.toggle("active", isActive);
-    if (isActive) {
-      button.classList.remove("text-neutral-300");
-      button.classList.add("text-white", "bg-uno-red");
-    } else {
-      button.classList.remove("text-white", "bg-uno-red");
-      button.classList.add("text-neutral-300");
-    }
-  });
-
-  if (id === "page-dashboard") loadDashboard();
-  if (id === "page-daily") loadDailySales();
-  if (id === "page-history") loadHistory();
-  if (id === "page-reports") loadReports();
-}
-
-document.querySelectorAll(".nav-btn").forEach(button => {
-  button.addEventListener("click", () => {
-    const pageId = button.dataset.page;
-    if (pageId) setActivePage(pageId);
-  });
+  // โหลดและแสดงผลข้อมูล
+  refreshAllData();
 });
 
-/* =========================================================
-   AUTHENTICATION
-========================================================= */
-
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    currentUser = user;
-    if ($("user-display")) $("user-display").textContent = user.email || "Manager";
-    if ($("admin-display-email")) $("admin-display-email").textContent = user.email || "Manager";
-
-    $("login-section")?.classList.add("hidden");
-    $("app-section")?.classList.remove("hidden");
-
-    loadDashboard();
+// ==========================================
+// LocalStorage & Data Handlers
+// ==========================================
+function initStorage() {
+  const storedSales = localStorage.getItem('uno_sales_data');
+  if (!storedSales) {
+    localStorage.setItem('uno_sales_data', JSON.stringify(initialSalesSeed));
+    state.salesData = [...initialSalesSeed];
   } else {
-    $("login-section")?.classList.remove("hidden");
-    $("app-section")?.classList.add("hidden");
+    state.salesData = JSON.parse(storedSales);
   }
-});
 
-$("login-form")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  $("login-error")?.classList.add("hidden");
-  if ($("btn-login")) $("btn-login").disabled = true;
-
-  try {
-    showLoading(true);
-    await signInWithEmailAndPassword(
-      auth,
-      $("login-email").value,
-      $("login-password").value
-    );
-    showToast("เข้าสู่ระบบสำเร็จ", "success");
-  } catch (error) {
-    if ($("login-error")) {
-      $("login-error").textContent = "เข้าสู่ระบบไม่สำเร็จ: " + error.message;
-      $("login-error").classList.remove("hidden");
-    }
-    showToast("เข้าสู่ระบบไม่สำเร็จ", "error");
-  } finally {
-    showLoading(false);
-    if ($("btn-login")) $("btn-login").disabled = false;
+  const storedTargets = localStorage.getItem('uno_targets_data');
+  if (!storedTargets) {
+    state.monthlyTargets = { '2026-09': 450000 };
+    localStorage.setItem('uno_targets_data', JSON.stringify(state.monthlyTargets));
+  } else {
+    state.monthlyTargets = JSON.parse(storedTargets);
   }
-});
-
-if ($("btn-logout")) {
-  $("btn-logout").onclick = async () => {
-    await signOut(auth);
-    showToast("ออกจากระบบแล้ว", "info");
-  };
 }
 
-/* =========================================================
-   FIRESTORE SALES DATA SERVICES
-========================================================= */
+function saveDataToStorage() {
+  localStorage.setItem('uno_sales_data', JSON.stringify(state.salesData));
+}
 
-async function getSales(from, to) {
-  try {
-    const snapshot = await getDocs(
-      query(
-        collection(db, "sales"),
-        where("date", ">=", from),
-        where("date", "<=", to)
-      )
-    );
+function saveTargetsToStorage() {
+  localStorage.setItem('uno_targets_data', JSON.stringify(state.monthlyTargets));
+}
 
-    const rows = [];
-    snapshot.forEach(docSnap => {
-      rows.push(normalizeDocument({ ...docSnap.data(), _id: docSnap.id }));
+// ==========================================
+// Event Listeners Registration
+// ==========================================
+function initEventListeners() {
+  // Navigation Tabs (Desktop & Mobile)
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const targetPage = e.currentTarget.getAttribute('data-page');
+      switchPage(targetPage);
     });
-
-    return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  } catch (err) {
-    console.error("Fetch sales error:", err);
-    showToast("ไม่สามารถโหลดข้อมูลยอดขายได้", "error");
-    return [];
-  }
-}
-
-async function getMonthSales(year, month) {
-  const now = new Date();
-  const targetYear = year || now.getFullYear();
-  const targetMonth = month || now.getMonth() + 1;
-  const monthStr = String(targetMonth).padStart(2, "0");
-
-  return getSales(
-    `${targetYear}-${monthStr}-01`,
-    `${targetYear}-${monthStr}-${daysInMonth(targetYear, targetMonth)}`
-  );
-}
-
-/* =========================================================
-   DASHBOARD LOGIC
-========================================================= */
-
-async function loadDashboard() {
-  showLoading(true);
-  try {
-    const now = new Date();
-    const rows = await getMonthSales();
-    const today = now.toISOString().split("T")[0];
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
-
-    const monthlyTargetSatang = await getMonthlyTargetSatang(currentMonthKey);
-    const totalDaysInMonth = daysInMonth(year, month);
-    const dailyTargetSatang = totalDaysInMonth ? Math.round(monthlyTargetSatang / totalDaysInMonth) : 0;
-
-    const total = rows.reduce((sum, row) => sum + (row.totalSalesSatang || 0), 0);
-    const todayRow = rows.find(row => row.date === today);
-    const todaySales = todayRow?.totalSalesSatang || 0;
-    const recordDays = rows.length;
-    const dayOfMonth = now.getDate();
-
-    const avg = recordDays ? Math.round(total / recordDays) : 0;
-    const projection = dayOfMonth ? Math.round((total / dayOfMonth) * totalDaysInMonth) : 0;
-
-    const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
-
-    let voids = 0;
-    const channelTotals = {};
-
-    rows.forEach(row => {
-      voids += row.voidBill || 0;
-      channels.forEach(channel => {
-        channelTotals[channel] = (channelTotals[channel] || 0) + (row.payments?.[channel] || 0);
-      });
-    });
-
-    if ($("dash-period")) $("dash-period").textContent = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(now);
-    if ($("dash-today-sales")) $("dash-today-sales").textContent = money(todaySales);
-    if ($("dash-mtd-sales")) $("dash-mtd-sales").textContent = money(total);
-    if ($("dash-avg-day")) $("dash-avg-day").textContent = money(avg);
-    if ($("dash-record-days")) $("dash-record-days").textContent = `${recordDays} recorded days`;
-    if ($("dash-projection")) $("dash-projection").textContent = money(projection);
-    if ($("dash-void-bills")) $("dash-void-bills").textContent = voids.toLocaleString();
-
-    if ($("dash-best-day")) {
-      $("dash-best-day").textContent = best
-        ? `Best: ${dateFmt(best.date)} · ${money(best.totalSalesSatang)}`
-        : "Best day —";
-    }
-
-    const todayAchievement = dailyTargetSatang ? (todaySales / dailyTargetSatang) * 100 : 0;
-    const monthAchievement = monthlyTargetSatang ? (total / monthlyTargetSatang) * 100 : 0;
-
-    if ($("dash-today-target")) $("dash-today-target").textContent = `${todayAchievement.toFixed(1)}% Target`;
-    if ($("dash-mtd-target")) $("dash-mtd-target").textContent = `${monthAchievement.toFixed(1)}% Target`;
-    if ($("dash-target-actual")) $("dash-target-actual").textContent = money(total);
-    if ($("dash-target-value")) $("dash-target-value").textContent = money(monthlyTargetSatang);
-
-    if ($("dash-projection-status")) {
-      const onTrack = projection >= monthlyTargetSatang;
-      $("dash-projection-status").textContent = onTrack ? "On track" : "Below target";
-      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}`;
-    }
-
-    renderDashboardCharts(rows, channelTotals, total, monthlyTargetSatang, dailyTargetSatang);
-    renderDashboardAlerts(rows, todaySales, voids, projection, monthlyTargetSatang, dailyTargetSatang);
-    renderRecent(rows, dailyTargetSatang);
-  } catch (error) {
-    console.error("Dashboard error:", error);
-  } finally {
-    showLoading(false);
-  }
-}
-
-$("btn-dash-refresh")?.addEventListener("click", () => {
-  loadDashboard();
-  showToast("อัปเดตข้อมูลแดชบอร์ดแล้ว", "info");
-});
-
-/* =========================================================
-   CHARTS RENDERING
-========================================================= */
-
-function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, dailyTargetSatang) {
-  const now = new Date();
-  const days = daysInMonth(now.getFullYear(), now.getMonth() + 1);
-  const labels = Array.from({ length: days }, (_, index) => String(index + 1).padStart(2, "0"));
-  const map = Object.fromEntries(rows.map(row => [row.date, parseTHB(row.totalSalesSatang)]));
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const data = labels.map(day => map[`${year}-${month}-${day}`] || 0);
-
-  trendChart?.destroy();
-  if ($("chart-sales-trend")) {
-    trendChart = new Chart($("chart-sales-trend"), {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          { label: "Actual Sales", data, borderColor: "#D93829", backgroundColor: "rgba(217, 56, 41, 0.08)", fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: "#D93829" },
-          { label: "Daily Target", data: labels.map(() => parseTHB(dailyTargetSatang)), borderColor: "#111111", borderDash: [4, 4], pointRadius: 0, tension: 0 }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  targetChart?.destroy();
-  if ($("chart-target")) {
-    targetChart = new Chart($("chart-target"), {
-      type: "doughnut",
-      data: {
-        labels: ["Actual", "Remaining"],
-        datasets: [{
-          data: [parseTHB(total), Math.max(0, parseTHB(monthlyTargetSatang - total))],
-          backgroundColor: ["#D93829", "#E5E7EB"],
-          borderWidth: 0
-        }]
-      },
-      options: { cutout: "75%", responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  mixChart?.destroy();
-  const entries = Object.entries(channelsTotal).filter(([, value]) => value > 0);
-  if ($("chart-payment-mix")) {
-    mixChart = new Chart($("chart-payment-mix"), {
-      type: "doughnut",
-      data: {
-        labels: entries.map(([key]) => channelLabels[key] || key),
-        datasets: [{
-          data: entries.map(([, value]) => parseTHB(value)),
-          backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"],
-          borderWidth: 1
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  const sum = entries.reduce((tot, [, val]) => tot + val, 0);
-  if ($("dash-payment-summary")) {
-    $("dash-payment-summary").innerHTML = entries.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([key, value]) => `
-      <div class="flex justify-between text-xs">
-        <span class="text-neutral-500">${esc(channelLabels[key] || key)}</span>
-        <strong>${money(value)} <span class="text-neutral-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
-      </div>
-    `).join("") || `<div class="text-xs text-neutral-400">ยังไม่มีข้อมูล</div>`;
-  }
-}
-
-function renderDashboardAlerts(rows, today, voids, projection, monthlyTargetSatang, dailyTargetSatang) {
-  const alerts = [];
-  if (today === 0) alerts.push(["warning", "ยังไม่มีการบันทึกยอดขายของวันนี้"]);
-  if (today > 0 && today < dailyTargetSatang) alerts.push(["warning", `ยอดวันนี้ต่ำกว่า Daily Target ${money(dailyTargetSatang - today)}`]);
-  if (projection < monthlyTargetSatang) alerts.push(["warning", "Projection สิ้นเดือนยังต่ำกว่า Monthly Target"]);
-  if (voids > 0) alerts.push(["danger", `พบ Void Bills สะสม ${voids.toLocaleString()} บิล`]);
-  if (!alerts.length) alerts.push(["success", "ผลการดำเนินงานอยู่ในเกณฑ์ปกติ"]);
-
-  if ($("dash-alerts")) {
-    $("dash-alerts").innerHTML = alerts.map(([type, message]) => `
-      <div class="flex items-center gap-3 p-3 rounded-xl ${type === "danger" ? "bg-red-50 text-uno-red border border-red-100" : type === "warning" ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-emerald-50 text-emerald-800 border border-emerald-100"}">
-        <div class="flex-1 text-xs font-semibold">${esc(message)}</div>
-      </div>
-    `).join("");
-  }
-}
-
-function renderRecent(rows, dailyTargetSatang) {
-  if (!$("recent-sales-body")) return;
-  const recent = rows.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
-
-  $("recent-sales-body").innerHTML = recent.map(row => `
-    <tr>
-      <td class="p-2 font-semibold">${dateFmt(row.date)}</td>
-      <td class="p-2 text-right font-bold">${money(row.totalSalesSatang)}</td>
-      <td class="p-2 text-right">${dailyTargetSatang ? ((row.totalSalesSatang / dailyTargetSatang) * 100).toFixed(1) : 0}%</td>
-      <td class="p-2 text-center">
-        <span class="pill ${row.totalSalesSatang >= dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}">
-          ${row.totalSalesSatang >= dailyTargetSatang ? "Above" : "Below"}
-        </span>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="4" class="p-4 text-center text-neutral-400">ยังไม่มีข้อมูล</td></tr>`;
-}
-
-/* =========================================================
-   SALE MODAL & FORM LOGIC
-========================================================= */
-
-function updateFormValidation() {
-  const total = parseFloat($("sale-total")?.value || 0);
-  let paySum = 0;
-  channels.forEach(ch => paySum += parseFloat($(ch)?.value || 0));
-
-  if ($("val-sum")) $("val-sum").textContent = "฿" + paySum.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-  const isMatch = Math.abs(total - paySum) < 0.01;
-  
-  if ($("val-status")) {
-    $("val-status").textContent = isMatch ? "Total Sales ตรงกับ Sum Breakdown" : "Total Sales ไม่ตรงกับ Sum Breakdown";
-    $("val-status").className = `font-bold ${isMatch ? "text-emerald-600" : "text-uno-red"}`;
-  }
-}
-
-function openSaleForm(date = "", rawDoc = null) {
-  const row = rawDoc ? normalizeDocument(rawDoc) : null;
-  editingDate = row ? date : null;
-
-  if ($("sale-modal-title")) $("sale-modal-title").textContent = row ? "แก้ไขยอดขายประจำวัน" : "บันทึกยอดขายประจำวัน";
-  if ($("sale-date")) $("sale-date").value = row?.date || date || new Date().toISOString().split("T")[0];
-  if ($("sale-total")) $("sale-total").value = row ? row.totalSalesBaht : "";
-
-  channels.forEach(channel => {
-    const input = $(channel);
-    if (input) input.value = row ? parseTHB(row.payments?.[channel] || 0) : "0";
   });
 
-  if ($("sale-void")) $("sale-void").value = row?.voidBill || 0;
-  updateFormValidation();
-  $("modal-sale")?.classList.remove("hidden");
+  // Modal Record Sale Controls
+  document.getElementById('btn-open-sale').addEventListener('click', () => openSaleModal());
+  document.getElementById('btn-close-sale').addEventListener('click', () => closeSaleModal());
+  document.getElementById('btn-cancel-sale').addEventListener('click', () => closeSaleModal());
+  document.getElementById('form-daily-sales').addEventListener('submit', handleSaleSubmit);
+
+  // Auto Sum Calculation inside Sale Form
+  const paymentInputs = ['cash', 'creditCard', 'qrPayment', 'promptPay', 'trueMoney', 'bankTransfer', 'linePay', 'alipay', 'lineMan', 'grab'];
+  paymentInputs.forEach(id => {
+    document.getElementById(id).addEventListener('input', calculatePaymentSum);
+  });
+  document.getElementById('sale-total').addEventListener('input', calculatePaymentSum);
+
+  // Daily Sales Page Actions & Search
+  document.getElementById('daily-search').addEventListener('input', filterDailySales);
+  document.getElementById('daily-month').addEventListener('change', filterDailySales);
+  document.getElementById('btn-save-monthly-target').addEventListener('click', handleSaveMonthlyTarget);
+  document.getElementById('daily-prev').addEventListener('click', () => changeDailyPage(-1));
+  document.getElementById('daily-next').addEventListener('click', () => changeDailyPage(1));
+
+  // Dashboard & Report Refresh Buttons
+  document.getElementById('btn-dash-refresh').addEventListener('click', refreshAllData);
+  document.getElementById('btn-report-refresh').addEventListener('click', updateReportSection);
+
+  // Delete Modal Actions
+  document.getElementById('btn-cancel-delete').addEventListener('click', closeDeleteModal);
+  document.getElementById('btn-confirm-delete').addEventListener('click', handleConfirmDelete);
+
+  // Admin Console - Reset Database
+  document.getElementById('btn-db-reset').addEventListener('click', handleDatabaseReset);
 }
 
-function closeSaleForm() {
-  $("modal-sale")?.classList.add("hidden");
-  editingDate = null;
-}
-
-$("btn-open-sale")?.addEventListener("click", () => openSaleForm());
-$("btn-close-sale")?.addEventListener("click", closeSaleForm);
-$("btn-cancel-sale")?.addEventListener("click", closeSaleForm);
-$("sale-total")?.addEventListener("input", updateFormValidation);
-channels.forEach(ch => $(ch)?.addEventListener("input", updateFormValidation));
-
-$("form-daily-sales")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  const date = $("sale-date").value;
-  const totalSalesSatang = inputToSatang($("sale-total").value);
-
-  if (!date) return showToast("กรุณาเลือกวันที่", "error");
-  if (totalSalesSatang <= 0) return showToast("กรุณาระบุยอดขายให้ถูกต้อง", "error");
-
-  const payments = {};
-  channels.forEach(channel => payments[channel] = inputToSatang($(channel)?.value || 0));
-  const paymentTotal = Object.values(payments).reduce((sum, value) => sum + value, 0);
-
-  if (Math.abs(paymentTotal - totalSalesSatang) > 1) {
-    return showToast(`ยอด Breakdown (${money(paymentTotal)}) ไม่ตรงกับ Total Sales (${money(totalSalesSatang)})`, "error");
-  }
-
-  const payload = {
-    date,
-    totalSalesSatang,
-    payments,
-    voidBill: parseInt($("sale-void")?.value || 0, 10),
-    updatedAt: serverTimestamp(),
-    updatedBy: currentUser?.email || currentUser?.uid || "unknown"
-  };
-
-  try {
-    showLoading(true);
-    const docRef = doc(db, "sales", date);
-    const existing = await getDoc(docRef);
-
-    if (!existing.exists()) {
-      payload.createdAt = serverTimestamp();
-      payload.createdBy = currentUser?.email || currentUser?.uid || "unknown";
+// ==========================================
+// Navigation & Page Switching
+// ==========================================
+function switchPage(pageId) {
+  state.currentPage = pageId;
+  
+  // Highlight Navigation Buttons
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    if (btn.getAttribute('data-page') === pageId) {
+      btn.classList.add('active', 'bg-uno-red', 'text-white');
+      btn.classList.remove('text-neutral-300');
+    } else {
+      btn.classList.remove('active', 'bg-uno-red', 'text-white');
+      btn.classList.add('text-neutral-300');
     }
+  });
 
-    await setDoc(docRef, payload, { merge: true });
-    closeSaleForm();
-    showToast(`บันทึกข้อมูลวันที่ ${dateFmt(date)} เรียบร้อยแล้ว`, "success");
+  // Hide all pages & Show selected
+  document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+  const activePage = document.getElementById(pageId);
+  if (activePage) activePage.classList.remove('hidden');
 
-    loadDashboard();
-    loadDailySales();
-    loadHistory();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการบันทึก: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-/* =========================================================
-   DAILY SALES & TARGETS
-========================================================= */
-
-async function updateDailyTargetUI() {
-  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-  if ($("daily-month") && !$("daily-month").value) {
-    $("daily-month").value = selectedMonth;
-  }
-
-  const [y, m] = selectedMonth.split("-").map(Number);
-  const totalDays = daysInMonth(y, m);
-  const mTargetSatang = await getMonthlyTargetSatang(selectedMonth);
-  const dTargetSatang = totalDays ? Math.round(mTargetSatang / totalDays) : 0;
-
-  if ($("daily-target-month-label")) {
-    const dObj = new Date(y, m - 1, 1);
-    $("daily-target-month-label").textContent = `เป้าหมายเดือน ${dObj.toLocaleDateString("th-TH", { month: "long", year: "numeric" })}`;
-  }
-  if ($("daily-monthly-target-input")) {
-    $("daily-monthly-target-input").value = parseTHB(mTargetSatang);
-  }
-  if ($("daily-calc-target")) {
-    $("daily-calc-target").value = money(dTargetSatang);
-  }
+  // Trigger page specific re-renders
+  if (pageId === 'page-dashboard') updateDashboard();
+  if (pageId === 'page-daily') updateDailySalesPage();
+  if (pageId === 'page-history') updateHistoryTable();
+  if (pageId === 'page-reports') updateReportSection();
 }
 
-$("btn-save-monthly-target")?.addEventListener("click", async () => {
-  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-  const inputValue = parseFloat($("daily-monthly-target-input")?.value || 0);
+// ==========================================
+// Main Business Logic & UI Updates
+// ==========================================
+function refreshAllData() {
+  updateDashboard();
+  updateDailySalesPage();
+  updateHistoryTable();
+  updateReportSection();
+  showToast('อัปเดตข้อมูลเรียบร้อยแล้ว');
+}
 
-  if (isNaN(inputValue) || inputValue < 0) {
-    return showToast("กรุณาระบุ Monthly Target ให้ถูกต้อง", "error");
+function updateDashboard() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentMonth = todayStr.substring(0, 7);
+  
+  document.getElementById('dash-period').textContent = todayStr;
+
+  // 1. Today Sales
+  const todayRecord = state.salesData.find(d => d.date === todayStr);
+  const todaySales = todayRecord ? todayRecord.totalSales : 0;
+  document.getElementById('dash-today-sales').textContent = formatCurrency(todaySales);
+
+  // 2. MTD Sales & Targets
+  const monthRecords = state.salesData.filter(d => d.date.startsWith(currentMonth));
+  const mtdSales = monthRecords.reduce((sum, r) => sum + r.totalSales, 0);
+  const monthlyTarget = state.monthlyTargets[currentMonth] || 0;
+  
+  document.getElementById('dash-mtd-sales').textContent = formatCurrency(mtdSales);
+  document.getElementById('dash-target-actual').textContent = formatCurrency(mtdSales);
+  document.getElementById('dash-target-value').textContent = formatCurrency(monthlyTarget);
+
+  const targetPercent = monthlyTarget > 0 ? ((mtdSales / monthlyTarget) * 100).toFixed(1) : 0;
+  document.getElementById('dash-mtd-target').textContent = `${targetPercent}% Target`;
+
+  // 3. Average per day
+  const recordedDays = monthRecords.length;
+  const avgDay = recordedDays > 0 ? mtdSales / recordedDays : 0;
+  document.getElementById('dash-avg-day').textContent = formatCurrency(avgDay);
+  document.getElementById('dash-record-days').textContent = `${recordedDays} recorded days`;
+
+  // 4. Void Bills & Best Day
+  const totalVoids = monthRecords.reduce((sum, r) => sum + (r.voidBills || 0), 0);
+  document.getElementById('dash-void-bills').textContent = totalVoids;
+
+  let bestDayText = 'Best day —';
+  if (monthRecords.length > 0) {
+    const bestRecord = [...monthRecords].sort((a, b) => b.totalSales - a.totalSales)[0];
+    bestDayText = `Best day ${bestRecord.date.slice(8)}th (${formatCurrency(bestRecord.totalSales)})`;
   }
+  document.getElementById('dash-best-day').textContent = bestDayText;
 
-  const monthlyTargetSatang = inputToSatang(inputValue);
+  // 5. Recent Sales Table
+  const recentBody = document.getElementById('recent-sales-body');
+  recentBody.innerHTML = '';
+  const sortedSales = [...state.salesData].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
-  try {
-    showLoading(true);
-    await setDoc(
-      doc(db, "targets", selectedMonth),
-      {
-        monthlyTargetSatang,
-        updatedAt: serverTimestamp(),
-        updatedBy: currentUser?.email || "unknown"
-      },
-      { merge: true }
-    );
+  sortedSales.forEach(item => {
+    const dailyTarget = monthlyTarget > 0 ? monthlyTarget / 30 : 0;
+    const pct = dailyTarget > 0 ? ((item.totalSales / dailyTarget) * 100).toFixed(0) : 0;
+    
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-neutral-50';
+    tr.innerHTML = `
+      <td class="py-2 font-bold">${item.date}</td>
+      <td class="py-2 text-right font-black text-uno-charcoal">${formatCurrency(item.totalSales)}</td>
+      <td class="py-2 text-right">${pct}%</td>
+      <td class="py-2 text-center"><span class="pill ${pct >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${pct >= 100 ? 'Hit' : 'Near'}</span></td>
+    `;
+    recentBody.appendChild(tr);
+  });
 
-    monthTargets[selectedMonth] = monthlyTargetSatang;
-    showToast(`อัปเดตเป้าหมายเดือน ${selectedMonth} สำเร็จ`, "success");
+  // 6. Update Charts
+  updateDashboardCharts(monthRecords, mtdSales, monthlyTarget);
+}
 
-    await updateDailyTargetUI();
-    loadDailySales();
-    loadDashboard();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการตั้ง Target: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
+function updateDailySalesPage() {
+  const currentMonth = document.getElementById('daily-month').value || new Date().toISOString().substring(0, 7);
+  document.getElementById('daily-target-month-label').textContent = `เป้าหมายประจำเดือน (${currentMonth})`;
 
-async function loadDailySales() {
-  showLoading(true);
-  try {
-    await updateDailyTargetUI();
-    const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-    const [y, m] = selectedMonth.split("-").map(Number);
+  const targetVal = state.monthlyTargets[currentMonth] || 0;
+  document.getElementById('daily-monthly-target-input').value = targetVal || '';
+  document.getElementById('daily-calc-target').value = formatCurrency(targetVal > 0 ? targetVal / 30 : 0);
 
-    const rows = await getMonthSales(y, m);
-    const search = ($("daily-search")?.value || "").toLowerCase().trim();
+  filterDailySales();
+}
 
-    dailyFiltered = rows.filter(row => {
-      const matchSearch =
-        !search ||
-        row.date.includes(search) ||
-        (row.updatedBy || "").toLowerCase().includes(search);
-      return matchSearch;
-    });
+function filterDailySales() {
+  const searchTerm = document.getElementById('daily-search').value.toLowerCase();
+  const monthFilter = document.getElementById('daily-month').value;
 
-    renderDailyTable();
-  } catch (err) {
-    console.error("Daily sales error:", err);
-  } finally {
-    showLoading(false);
-  }
+  let filtered = state.salesData.filter(item => {
+    const matchSearch = item.date.includes(searchTerm) || (item.updatedBy && item.updatedBy.toLowerCase().includes(searchTerm));
+    const matchMonth = monthFilter ? item.date.startsWith(monthFilter) : true;
+    return matchSearch && matchMonth;
+  });
+
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  state.pagination.filteredData = filtered;
+  state.pagination.currentPage = 1;
+  renderDailyTable();
 }
 
 function renderDailyTable() {
-  if (!$("daily-table-body")) return;
+  const tbody = document.getElementById('daily-table-body');
+  tbody.innerHTML = '';
 
-  const totalPages = Math.ceil(dailyFiltered.length / PAGE_SIZE) || 1;
-  if (dailyPage > totalPages) dailyPage = totalPages;
-  if (dailyPage < 1) dailyPage = 1;
+  const { currentPage, pageSize, filteredData } = state.pagination;
+  const totalRecords = filteredData.length;
+  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
-  const start = (dailyPage - 1) * PAGE_SIZE;
-  const pageRows = dailyFiltered.slice(start, start + PAGE_SIZE);
-
-  if ($("daily-count")) $("daily-count").textContent = `${dailyFiltered.length} records`;
-  if ($("daily-page-info")) $("daily-page-info").textContent = `Page ${dailyPage} / ${totalPages}`;
-
-  if ($("daily-prev")) $("daily-prev").disabled = dailyPage <= 1;
-  if ($("daily-next")) $("daily-next").disabled = dailyPage >= totalPages;
-
-  $("daily-table-body").innerHTML = pageRows.map(row => `
-    <tr class="hover:bg-slate-50 border-b border-neutral-100">
-      <td class="p-3 font-semibold text-uno-charcoal">${dateFmt(row.date)}</td>
-      <td class="p-3 text-right font-bold text-uno-red">${money(row.totalSalesSatang)}</td>
-      <td class="p-3 text-right">${money(row.payments?.cash)}</td>
-      <td class="p-3 text-right">${money(row.payments?.creditCard)}</td>
-      <td class="p-3 text-right">${money(row.payments?.qrPayment)}</td>
-      <td class="p-3 text-right">${money(row.payments?.promptPay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.trueMoney)}</td>
-      <td class="p-3 text-right">${money(row.payments?.bankTransfer)}</td>
-      <td class="p-3 text-right">${money(row.payments?.linePay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.alipay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.lineMan)}</td>
-      <td class="p-3 text-right">${money(row.payments?.grab)}</td>
-      <td class="p-3 text-center">${row.voidBill || 0}</td>
-      <td class="p-3 text-neutral-500">${esc(row.updatedBy || "-")}</td>
-      <td class="p-3 text-center space-x-1">
-        <button class="btn-edit-row px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-lg text-[10px]" data-date="${row.date}">Edit</button>
-        <button class="btn-delete-row px-2 py-1 bg-red-50 hover:bg-red-100 text-uno-red font-bold rounded-lg text-[10px]" data-date="${row.date}">Delete</button>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="15" class="p-6 text-center text-neutral-400">ไม่พบข้อมูลบันทึกยอดขาย</td></tr>`;
-
-  document.querySelectorAll(".btn-edit-row").forEach(btn => {
-    btn.onclick = async () => {
-      const d = btn.dataset.date;
-      const docSnap = await getDoc(doc(db, "sales", d));
-      if (docSnap.exists()) openSaleForm(d, docSnap.data());
-    };
-  });
-
-  document.querySelectorAll(".btn-delete-row").forEach(btn => {
-    btn.onclick = () => {
-      activeDeleteDate = btn.dataset.date;
-      if ($("delete-date-target")) $("delete-date-target").textContent = dateFmt(activeDeleteDate);
-      $("modal-delete")?.classList.remove("hidden");
-    };
-  });
-}
-
-$("daily-month")?.addEventListener("change", () => loadDailySales());
-$("daily-search")?.addEventListener("input", () => {
-  dailyPage = 1;
-  loadDailySales();
-});
-
-$("daily-prev")?.addEventListener("click", () => {
-  if (dailyPage > 1) {
-    dailyPage--;
-    renderDailyTable();
-  }
-});
-
-$("daily-next")?.addEventListener("click", () => {
-  dailyPage++;
-  renderDailyTable();
-});
-
-$("btn-cancel-delete")?.addEventListener("click", () => {
-  $("modal-delete")?.classList.add("hidden");
-  activeDeleteDate = null;
-});
-
-$("btn-confirm-delete")?.addEventListener("click", async () => {
-  if (!activeDeleteDate) return;
-  try {
-    showLoading(true);
-    await deleteDoc(doc(db, "sales", activeDeleteDate));
-    $("modal-delete")?.classList.add("hidden");
-    showToast(`ลบข้อมูลวันที่ ${dateFmt(activeDeleteDate)} แล้ว`, "success");
-    activeDeleteDate = null;
-
-    loadDailySales();
-    loadDashboard();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการลบข้อมูล: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-/* =========================================================
-   HISTORY PAGE LOGIC
-========================================================= */
-
-async function loadHistory() {
-  showLoading(true);
-  try {
-    const now = new Date();
-    const rows = await getMonthSales(now.getFullYear(), now.getMonth() + 1);
-
-    if ($("history-table-body")) {
-      $("history-table-body").innerHTML = rows.map(row => {
-        const lastUpdated = row.updatedAt?.toDate ? row.updatedAt.toDate().toLocaleString("th-TH") : "—";
-        return `
-          <tr class="hover:bg-slate-50 border-b border-neutral-100">
-            <td class="p-3.5 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
-            <td class="p-3.5 text-right font-bold text-uno-red">${money(row.totalSalesSatang)}</td>
-            <td class="p-3.5 text-center">${row.voidBill || 0}</td>
-            <td class="p-3.5 text-neutral-600">${esc(row.updatedBy || "-")}</td>
-            <td class="p-3.5 text-neutral-400 text-[11px]">${lastUpdated}</td>
-          </tr>
-        `;
-      }).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ยังไม่มีประวัติการบันทึก</td></tr>`;
-    }
-  } catch (err) {
-    console.error("History error:", err);
-  } finally {
-    showLoading(false);
-  }
-}
-
-/* =========================================================
-   REPORTS PAGE LOGIC
-========================================================= */
-
-async function loadReports() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-
-  const defaultFrom = `${year}-${monthStr}-01`;
-  const defaultTo = `${year}-${monthStr}-${daysInMonth(year, now.getMonth() + 1)}`;
-
-  if ($("report-from") && !$("report-from").value) $("report-from").value = defaultFrom;
-  if ($("report-to") && !$("report-to").value) $("report-to").value = defaultTo;
-
-  const from = $("report-from").value;
-  const to = $("report-to").value;
-
-  showLoading(true);
-  try {
-    const rows = await getSales(from, to);
-    const monthKey = from.slice(0, 7);
-    const mTargetSatang = await getMonthlyTargetSatang(monthKey);
-    const daysCount = daysInMonth(parseInt(monthKey.split("-")[0]), parseInt(monthKey.split("-")[1]));
-
-    let total = 0;
-    let voids = 0;
-    const channelTotals = {};
-
-    rows.forEach(row => {
-      total += row.totalSalesSatang || 0;
-      voids += row.voidBill || 0;
-      channels.forEach(ch => {
-        channelTotals[ch] = (channelTotals[ch] || 0) + (row.payments?.[ch] || 0);
-      });
-    });
-
-    reportTrendChart?.destroy();
-    if ($("chart-report-trend")) {
-      reportTrendChart = new Chart($("chart-report-trend"), {
-        type: "bar",
-        data: {
-          labels: rows.map(r => dateFmt(r.date)),
-          datasets: [{
-            label: "Total Sales",
-            data: rows.map(r => parseTHB(r.totalSalesSatang)),
-            backgroundColor: "#D93829",
-            borderRadius: 6
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    reportPieChart?.destroy();
-    const entries = Object.entries(channelTotals).filter(([, val]) => val > 0);
-    if ($("chart-report-pie")) {
-      reportPieChart = new Chart($("chart-report-pie"), {
-        type: "pie",
-        data: {
-          labels: entries.map(([k]) => channelLabels[k] || k),
-          datasets: [{
-            data: entries.map(([, v]) => parseTHB(v)),
-            backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"]
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    if ($("report-insights")) {
-      $("report-insights").innerHTML = `
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Sales Recorded</span>
-          <strong class="text-sm font-black text-uno-red">${money(total)}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Average Sales / Day</span>
-          <strong class="text-sm font-black text-uno-charcoal">${money(rows.length ? Math.round(total / rows.length) : 0)}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Voids Count</span>
-          <strong class="text-sm font-black text-uno-red">${voids.toLocaleString()}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Recorded Days</span>
-          <strong class="text-sm font-black text-uno-charcoal">${rows.length} Days</strong>
-        </div>
-      `;
-    }
-  } catch (err) {
-    console.error("Reports error:", err);
-  } finally {
-    showLoading(false);
-  }
-}
-
-$("btn-report-refresh")?.addEventListener("click", () => loadReports());
-const db = getFirestore(app);
-
-/* =========================================================
-   STATE MANAGEMENT
-========================================================= */
-
-let currentUser = null;
-let monthTargets = {};
-let activeDeleteDate = null;
-let editingDate = null;
-
-let dailyFiltered = [];
-let dailyPage = 1;
-const PAGE_SIZE = 10;
-
-let trendChart = null;
-let mixChart = null;
-let targetChart = null;
-let reportTrendChart = null;
-let reportPieChart = null;
-
-/* =========================================================
-   CONSTANTS & LABELS
-========================================================= */
-
-const channels = [
-  "cash",
-  "creditCard",
-  "qrPayment",
-  "promptPay",
-  "trueMoney",
-  "bankTransfer",
-  "linePay",
-  "alipay",
-  "lineMan",
-  "grab"
-];
-
-const channelLabels = {
-  cash: "Cash",
-  creditCard: "Credit Card",
-  qrPayment: "QR Payment",
-  promptPay: "PromptPay",
-  trueMoney: "TrueMoney",
-  bankTransfer: "Bank Transfer",
-  linePay: "Line Pay",
-  alipay: "Alipay",
-  lineMan: "Line Man",
-  grab: "Grab"
-};
-
-/* =========================================================
-   HYBRID DATA MAPPER & CONVERTER
-   (รองรับทั้งกรณี DB เดิมเก็บเป็น "บาท" หรือ "สตางค์")
-========================================================= */
-
-const $ = id => document.getElementById(id);
-
-// แปลงจาก Form Input เป็น Satang เมื่อจะบันทึกลง Database
-const inputToSatang = value => Math.round((parseFloat(value) || 0) * 100);
-
-// อ่านค่าจาก DB และแปลงเป็นหน่วย THB Baht แบบปลอดภัย
-const parseTHB = value => {
-  const num = parseFloat(value) || 0;
-  if (num > 1000000) return num / 100; // หากค่าเกินล้าน แสดงว่าเป็น Satang
-  return num; // หากค่าน้อยกว่า แสดงว่าเป็น Baht
-};
-
-const parseSatang = value => Math.round(parseTHB(value) * 100);
-
-const money = valueInBahtOrSatang => {
-  const baht = parseTHB(valueInBahtOrSatang);
-  return "฿" + baht.toLocaleString("th-TH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
-const esc = value =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    }[char])
-  );
-
-const dateFmt = date => {
-  if (!date) return "—";
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
-};
-
-const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
-
-function showLoading(show = true) {
-  const loader = $("global-loading");
-  if (loader) {
-    if (show) loader.classList.remove("hidden");
-    else loader.classList.add("hidden");
-  }
-}
-
-function showToast(message, type = "info") {
-  const container = $("toast-container");
-  if (!container) return;
-
-  const toast = document.createElement("div");
-  const bg =
-    type === "success"
-      ? "bg-emerald-600"
-      : type === "error"
-      ? "bg-uno-red"
-      : "bg-neutral-800";
-
-  toast.className = `${bg} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto flex items-center justify-between gap-2`;
-  toast.innerHTML = `<span>${esc(message)}</span><button class="opacity-70 hover:opacity-100 font-bold ml-2">✕</button>`;
-
-  toast.querySelector("button").onclick = () => toast.remove();
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.remove("opacity-0", "translate-y-2");
-  }, 10);
-
-  setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
-}
-
-// Normalizer ช่วยแปลง Field Structure เดิมของ DB ให้กลายเป็น Standard Object
-function normalizeDocument(raw) {
-  const total = raw.totalSalesSatang ?? raw.totalSales ?? raw.total_sales ?? 0;
-  const voidBill = raw.voidBill ?? raw.void_bill ?? raw.voidCount ?? 0;
+  document.getElementById('daily-count').textContent = `${totalRecords} records`;
+  document.getElementById('daily-page-info').textContent = `Page ${currentPage} / ${totalPages}`;
   
-  const payments = {};
-  channels.forEach(ch => {
-    payments[ch] = parseSatang(raw.payments?.[ch] ?? raw[ch] ?? 0);
-  });
+  document.getElementById('daily-prev').disabled = currentPage <= 1;
+  document.getElementById('daily-next').disabled = currentPage >= totalPages;
 
-  return {
-    date: raw.date || raw._id,
-    totalSalesSatang: parseSatang(total),
-    totalSalesBaht: parseTHB(total),
-    payments,
-    voidBill: parseInt(voidBill, 10) || 0,
-    updatedBy: raw.updatedBy || raw.createdBy || "System",
-    updatedAt: raw.updatedAt || null
-  };
-}
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageData = filteredData.slice(startIdx, startIdx + pageSize);
 
-async function getMonthlyTargetSatang(monthKey) {
-  if (monthTargets[monthKey] !== undefined) {
-    return monthTargets[monthKey];
+  if (pageData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="15" class="p-4 text-center text-neutral-400">ไม่พบข้อมูลยอดขาย</td></tr>`;
+    return;
   }
-  try {
-    const docSnap = await getDoc(doc(db, "targets", monthKey));
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const val = data.monthlyTargetSatang ?? data.monthlyTarget ?? data.target ?? 0;
-      monthTargets[monthKey] = parseSatang(val);
-    } else {
-      monthTargets[monthKey] = 0;
-    }
-  } catch (e) {
-    console.error("Fetch target error:", e);
-    monthTargets[monthKey] = 0;
-  }
-  return monthTargets[monthKey];
+
+  pageData.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-neutral-50 border-b border-neutral-100';
+    tr.innerHTML = `
+      <td class="p-3 font-bold text-uno-charcoal">${item.date}</td>
+      <td class="p-3 text-right font-black text-uno-red">${formatCurrency(item.totalSales)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.cash || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.creditCard || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.qrPayment || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.promptPay || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.trueMoney || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.bankTransfer || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.linePay || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.alipay || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.lineMan || 0)}</td>
+      <td class="p-3 text-right">${formatCurrency(item.grab || 0)}</td>
+      <td class="p-3 text-center font-bold text-amber-600">${item.voidBills || 0}</td>
+      <td class="p-3 text-neutral-500">${item.updatedBy || '-'}</td>
+      <td class="p-3 text-center">
+        <div class="flex items-center justify-center gap-1">
+          <button class="px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded font-bold text-[10px]" onclick="openSaleModal('${item.date}')">แก้ไข</button>
+          <button class="px-2 py-1 bg-red-50 hover:bg-red-100 text-uno-red rounded font-bold text-[10px]" onclick="openDeleteModal('${item.date}')">ลบ</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-/* =========================================================
-   PAGE NAVIGATION
-========================================================= */
-
-function setActivePage(id) {
-  document.querySelectorAll(".page").forEach(page => {
-    page.classList.toggle("hidden", page.id !== id);
-  });
-
-  document.querySelectorAll(".nav-btn").forEach(button => {
-    const isActive = button.dataset.page === id;
-    button.classList.toggle("active", isActive);
-    if (isActive) {
-      button.classList.remove("text-neutral-300");
-      button.classList.add("text-white", "bg-uno-red");
-    } else {
-      button.classList.remove("text-white", "bg-uno-red");
-      button.classList.add("text-neutral-300");
-    }
-  });
-
-  if (id === "page-dashboard") loadDashboard();
-  if (id === "page-daily") loadDailySales();
-  if (id === "page-history") loadHistory();
-  if (id === "page-reports") loadReports();
+function changeDailyPage(direction) {
+  state.pagination.currentPage += direction;
+  renderDailyTable();
 }
 
-document.querySelectorAll(".nav-btn").forEach(button => {
-  button.addEventListener("click", () => {
-    const pageId = button.dataset.page;
-    if (pageId) setActivePage(pageId);
+function updateHistoryTable() {
+  const tbody = document.getElementById('history-table-body');
+  tbody.innerHTML = '';
+
+  const sorted = [...state.salesData].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  sorted.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-neutral-50';
+    tr.innerHTML = `
+      <td class="p-3.5 font-bold">${item.date}</td>
+      <td class="p-3.5 text-right font-black text-uno-charcoal">${formatCurrency(item.totalSales)}</td>
+      <td class="p-3.5 text-center font-bold text-amber-600">${item.voidBills || 0}</td>
+      <td class="p-3.5">${item.updatedBy || 'System'}</td>
+      <td class="p-3.5 text-neutral-400">${item.lastUpdated || '-'}</td>
+    `;
+    tbody.appendChild(tr);
   });
-});
+}
 
-/* =========================================================
-   AUTHENTICATION
-========================================================= */
+// ==========================================
+// Modal & Record Sale Actions
+// ==========================================
+window.openSaleModal = function(dateToEdit = null) {
+  const modal = document.getElementById('modal-sale');
+  const title = document.getElementById('sale-modal-title');
+  const dateInput = document.getElementById('sale-date');
 
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    currentUser = user;
-    if ($("user-display")) $("user-display").textContent = user.email || "Manager";
-    if ($("admin-display-email")) $("admin-display-email").textContent = user.email || "Manager";
-
-    $("login-section")?.classList.add("hidden");
-    $("app-section")?.classList.remove("hidden");
-
-    loadDashboard();
+  if (dateToEdit) {
+    title.textContent = `แก้ไขยอดขายวันที่ ${dateToEdit}`;
+    const record = state.salesData.find(d => d.date === dateToEdit);
+    if (record) {
+      dateInput.value = record.date;
+      dateInput.disabled = true; // ห้ามแก้ วันที่ ที่เป็น Key
+      document.getElementById('sale-total').value = record.totalSales;
+      document.getElementById('cash').value = record.cash || 0;
+      document.getElementById('creditCard').value = record.creditCard || 0;
+      document.getElementById('qrPayment').value = record.qrPayment || 0;
+      document.getElementById('promptPay').value = record.promptPay || 0;
+      document.getElementById('trueMoney').value = record.trueMoney || 0;
+      document.getElementById('bankTransfer').value = record.bankTransfer || 0;
+      document.getElementById('linePay').value = record.linePay || 0;
+      document.getElementById('alipay').value = record.alipay || 0;
+      document.getElementById('lineMan').value = record.lineMan || 0;
+      document.getElementById('grab').value = record.grab || 0;
+      document.getElementById('sale-void').value = record.voidBills || 0;
+    }
   } else {
-    $("login-section")?.classList.remove("hidden");
-    $("app-section")?.classList.add("hidden");
-  }
-});
-
-$("login-form")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  $("login-error")?.classList.add("hidden");
-  if ($("btn-login")) $("btn-login").disabled = true;
-
-  try {
-    showLoading(true);
-    await signInWithEmailAndPassword(
-      auth,
-      $("login-email").value,
-      $("login-password").value
-    );
-    showToast("เข้าสู่ระบบสำเร็จ", "success");
-  } catch (error) {
-    if ($("login-error")) {
-      $("login-error").textContent = "เข้าสู่ระบบไม่สำเร็จ: " + error.message;
-      $("login-error").classList.remove("hidden");
-    }
-    showToast("เข้าสู่ระบบไม่สำเร็จ", "error");
-  } finally {
-    showLoading(false);
-    if ($("btn-login")) $("btn-login").disabled = false;
-  }
-});
-
-if ($("btn-logout")) {
-  $("btn-logout").onclick = async () => {
-    await signOut(auth);
-    showToast("ออกจากระบบแล้ว", "info");
-  };
-}
-
-/* =========================================================
-   FIRESTORE SALES DATA SERVICES
-========================================================= */
-
-async function getSales(from, to) {
-  try {
-    const snapshot = await getDocs(
-      query(
-        collection(db, "sales"),
-        where("date", ">=", from),
-        where("date", "<=", to)
-      )
-    );
-
-    const rows = [];
-    snapshot.forEach(docSnap => {
-      rows.push(normalizeDocument({ ...docSnap.data(), _id: docSnap.id }));
-    });
-
-    return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  } catch (err) {
-    console.error("Fetch sales error:", err);
-    showToast("ไม่สามารถโหลดข้อมูลยอดขายได้", "error");
-    return [];
-  }
-}
-
-async function getMonthSales(year, month) {
-  const now = new Date();
-  const targetYear = year || now.getFullYear();
-  const targetMonth = month || now.getMonth() + 1;
-  const monthStr = String(targetMonth).padStart(2, "0");
-
-  return getSales(
-    `${targetYear}-${monthStr}-01`,
-    `${targetYear}-${monthStr}-${daysInMonth(targetYear, targetMonth)}`
-  );
-}
-
-/* =========================================================
-   DASHBOARD LOGIC
-========================================================= */
-
-async function loadDashboard() {
-  showLoading(true);
-  try {
-    const now = new Date();
-    const rows = await getMonthSales();
-    const today = now.toISOString().split("T")[0];
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
-
-    const monthlyTargetSatang = await getMonthlyTargetSatang(currentMonthKey);
-    const totalDaysInMonth = daysInMonth(year, month);
-    const dailyTargetSatang = totalDaysInMonth ? Math.round(monthlyTargetSatang / totalDaysInMonth) : 0;
-
-    const total = rows.reduce((sum, row) => sum + (row.totalSalesSatang || 0), 0);
-    const todayRow = rows.find(row => row.date === today);
-    const todaySales = todayRow?.totalSalesSatang || 0;
-    const recordDays = rows.length;
-    const dayOfMonth = now.getDate();
-
-    const avg = recordDays ? Math.round(total / recordDays) : 0;
-    const projection = dayOfMonth ? Math.round((total / dayOfMonth) * totalDaysInMonth) : 0;
-
-    const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
-
-    let voids = 0;
-    const channelTotals = {};
-
-    rows.forEach(row => {
-      voids += row.voidBill || 0;
-      channels.forEach(channel => {
-        channelTotals[channel] = (channelTotals[channel] || 0) + (row.payments?.[channel] || 0);
-      });
-    });
-
-    if ($("dash-period")) $("dash-period").textContent = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(now);
-    if ($("dash-today-sales")) $("dash-today-sales").textContent = money(todaySales);
-    if ($("dash-mtd-sales")) $("dash-mtd-sales").textContent = money(total);
-    if ($("dash-avg-day")) $("dash-avg-day").textContent = money(avg);
-    if ($("dash-record-days")) $("dash-record-days").textContent = `${recordDays} recorded days`;
-    if ($("dash-projection")) $("dash-projection").textContent = money(projection);
-    if ($("dash-void-bills")) $("dash-void-bills").textContent = voids.toLocaleString();
-
-    if ($("dash-best-day")) {
-      $("dash-best-day").textContent = best
-        ? `Best: ${dateFmt(best.date)} · ${money(best.totalSalesSatang)}`
-        : "Best day —";
-    }
-
-    const todayAchievement = dailyTargetSatang ? (todaySales / dailyTargetSatang) * 100 : 0;
-    const monthAchievement = monthlyTargetSatang ? (total / monthlyTargetSatang) * 100 : 0;
-
-    if ($("dash-today-target")) $("dash-today-target").textContent = `${todayAchievement.toFixed(1)}% Target`;
-    if ($("dash-mtd-target")) $("dash-mtd-target").textContent = `${monthAchievement.toFixed(1)}% Target`;
-    if ($("dash-target-actual")) $("dash-target-actual").textContent = money(total);
-    if ($("dash-target-value")) $("dash-target-value").textContent = money(monthlyTargetSatang);
-
-    if ($("dash-projection-status")) {
-      const onTrack = projection >= monthlyTargetSatang;
-      $("dash-projection-status").textContent = onTrack ? "On track" : "Below target";
-      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}`;
-    }
-
-    renderDashboardCharts(rows, channelTotals, total, monthlyTargetSatang, dailyTargetSatang);
-    renderDashboardAlerts(rows, todaySales, voids, projection, monthlyTargetSatang, dailyTargetSatang);
-    renderRecent(rows, dailyTargetSatang);
-  } catch (error) {
-    console.error("Dashboard error:", error);
-  } finally {
-    showLoading(false);
-  }
-}
-
-$("btn-dash-refresh")?.addEventListener("click", () => {
-  loadDashboard();
-  showToast("อัปเดตข้อมูลแดชบอร์ดแล้ว", "info");
-});
-
-/* =========================================================
-   CHARTS RENDERING
-========================================================= */
-
-function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, dailyTargetSatang) {
-  const now = new Date();
-  const days = daysInMonth(now.getFullYear(), now.getMonth() + 1);
-  const labels = Array.from({ length: days }, (_, index) => String(index + 1).padStart(2, "0"));
-  const map = Object.fromEntries(rows.map(row => [row.date, parseTHB(row.totalSalesSatang)]));
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const data = labels.map(day => map[`${year}-${month}-${day}`] || 0);
-
-  trendChart?.destroy();
-  if ($("chart-sales-trend")) {
-    trendChart = new Chart($("chart-sales-trend"), {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          { label: "Actual Sales", data, borderColor: "#D93829", backgroundColor: "rgba(217, 56, 41, 0.08)", fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: "#D93829" },
-          { label: "Daily Target", data: labels.map(() => parseTHB(dailyTargetSatang)), borderColor: "#111111", borderDash: [4, 4], pointRadius: 0, tension: 0 }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
+    title.textContent = 'บันทึกยอดขายประจำวัน';
+    dateInput.disabled = false;
+    document.getElementById('form-daily-sales').reset();
+    dateInput.value = new Date().toISOString().split('T')[0];
   }
 
-  targetChart?.destroy();
-  if ($("chart-target")) {
-    targetChart = new Chart($("chart-target"), {
-      type: "doughnut",
-      data: {
-        labels: ["Actual", "Remaining"],
-        datasets: [{
-          data: [parseTHB(total), Math.max(0, parseTHB(monthlyTargetSatang - total))],
-          backgroundColor: ["#D93829", "#E5E7EB"],
-          borderWidth: 0
-        }]
-      },
-      options: { cutout: "75%", responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  mixChart?.destroy();
-  const entries = Object.entries(channelsTotal).filter(([, value]) => value > 0);
-  if ($("chart-payment-mix")) {
-    mixChart = new Chart($("chart-payment-mix"), {
-      type: "doughnut",
-      data: {
-        labels: entries.map(([key]) => channelLabels[key] || key),
-        datasets: [{
-          data: entries.map(([, value]) => parseTHB(value)),
-          backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"],
-          borderWidth: 1
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  const sum = entries.reduce((tot, [, val]) => tot + val, 0);
-  if ($("dash-payment-summary")) {
-    $("dash-payment-summary").innerHTML = entries.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([key, value]) => `
-      <div class="flex justify-between text-xs">
-        <span class="text-neutral-500">${esc(channelLabels[key] || key)}</span>
-        <strong>${money(value)} <span class="text-neutral-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
-      </div>
-    `).join("") || `<div class="text-xs text-neutral-400">ยังไม่มีข้อมูล</div>`;
-  }
-}
-
-function renderDashboardAlerts(rows, today, voids, projection, monthlyTargetSatang, dailyTargetSatang) {
-  const alerts = [];
-  if (today === 0) alerts.push(["warning", "ยังไม่มีการบันทึกยอดขายของวันนี้"]);
-  if (today > 0 && today < dailyTargetSatang) alerts.push(["warning", `ยอดวันนี้ต่ำกว่า Daily Target ${money(dailyTargetSatang - today)}`]);
-  if (projection < monthlyTargetSatang) alerts.push(["warning", "Projection สิ้นเดือนยังต่ำกว่า Monthly Target"]);
-  if (voids > 0) alerts.push(["danger", `พบ Void Bills สะสม ${voids.toLocaleString()} บิล`]);
-  if (!alerts.length) alerts.push(["success", "ผลการดำเนินงานอยู่ในเกณฑ์ปกติ"]);
-
-  if ($("dash-alerts")) {
-    $("dash-alerts").innerHTML = alerts.map(([type, message]) => `
-      <div class="flex items-center gap-3 p-3 rounded-xl ${type === "danger" ? "bg-red-50 text-uno-red border border-red-100" : type === "warning" ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-emerald-50 text-emerald-800 border border-emerald-100"}">
-        <div class="flex-1 text-xs font-semibold">${esc(message)}</div>
-      </div>
-    `).join("");
-  }
-}
-
-function renderRecent(rows, dailyTargetSatang) {
-  if (!$("recent-sales-body")) return;
-  const recent = rows.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
-
-  $("recent-sales-body").innerHTML = recent.map(row => `
-    <tr>
-      <td class="p-2 font-semibold">${dateFmt(row.date)}</td>
-      <td class="p-2 text-right font-bold">${money(row.totalSalesSatang)}</td>
-      <td class="p-2 text-right">${dailyTargetSatang ? ((row.totalSalesSatang / dailyTargetSatang) * 100).toFixed(1) : 0}%</td>
-      <td class="p-2 text-center">
-        <span class="pill ${row.totalSalesSatang >= dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}">
-          ${row.totalSalesSatang >= dailyTargetSatang ? "Above" : "Below"}
-        </span>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="4" class="p-4 text-center text-neutral-400">ยังไม่มีข้อมูล</td></tr>`;
-}
-
-/* =========================================================
-   SALE MODAL & FORM LOGIC
-========================================================= */
-
-function updateFormValidation() {
-  const total = parseFloat($("sale-total")?.value || 0);
-  let paySum = 0;
-  channels.forEach(ch => paySum += parseFloat($(ch)?.value || 0));
-
-  if ($("val-sum")) $("val-sum").textContent = "฿" + paySum.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-  const isMatch = Math.abs(total - paySum) < 0.01;
-  
-  if ($("val-status")) {
-    $("val-status").textContent = isMatch ? "Total Sales ตรงกับ Sum Breakdown" : "Total Sales ไม่ตรงกับ Sum Breakdown";
-    $("val-status").className = `font-bold ${isMatch ? "text-emerald-600" : "text-uno-red"}`;
-  }
-}
-
-function openSaleForm(date = "", rawDoc = null) {
-  const row = rawDoc ? normalizeDocument(rawDoc) : null;
-  editingDate = row ? date : null;
-
-  if ($("sale-modal-title")) $("sale-modal-title").textContent = row ? "แก้ไขยอดขายประจำวัน" : "บันทึกยอดขายประจำวัน";
-  if ($("sale-date")) $("sale-date").value = row?.date || date || new Date().toISOString().split("T")[0];
-  if ($("sale-total")) $("sale-total").value = row ? row.totalSalesBaht : "";
-
-  channels.forEach(channel => {
-    const input = $(channel);
-    if (input) input.value = row ? parseTHB(row.payments?.[channel] || 0) : "0";
-  });
-
-  if ($("sale-void")) $("sale-void").value = row?.voidBill || 0;
-  updateFormValidation();
-  $("modal-sale")?.classList.remove("hidden");
-}
-
-function closeSaleForm() {
-  $("modal-sale")?.classList.add("hidden");
-  editingDate = null;
-}
-
-$("btn-open-sale")?.addEventListener("click", () => openSaleForm());
-$("btn-close-sale")?.addEventListener("click", closeSaleForm);
-$("btn-cancel-sale")?.addEventListener("click", closeSaleForm);
-$("sale-total")?.addEventListener("input", updateFormValidation);
-channels.forEach(ch => $(ch)?.addEventListener("input", updateFormValidation));
-
-$("form-daily-sales")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  const date = $("sale-date").value;
-  const totalSalesSatang = inputToSatang($("sale-total").value);
-
-  if (!date) return showToast("กรุณาเลือกวันที่", "error");
-  if (totalSalesSatang <= 0) return showToast("กรุณาระบุยอดขายให้ถูกต้อง", "error");
-
-  const payments = {};
-  channels.forEach(channel => payments[channel] = inputToSatang($(channel)?.value || 0));
-  const paymentTotal = Object.values(payments).reduce((sum, value) => sum + value, 0);
-
-  if (Math.abs(paymentTotal - totalSalesSatang) > 1) {
-    return showToast(`ยอด Breakdown (${money(paymentTotal)}) ไม่ตรงกับ Total Sales (${money(totalSalesSatang)})`, "error");
-  }
-
-  const payload = {
-    date,
-    totalSalesSatang,
-    payments,
-    voidBill: parseInt($("sale-void")?.value || 0, 10),
-    updatedAt: serverTimestamp(),
-    updatedBy: currentUser?.email || currentUser?.uid || "unknown"
-  };
-
-  try {
-    showLoading(true);
-    const docRef = doc(db, "sales", date);
-    const existing = await getDoc(docRef);
-
-    if (!existing.exists()) {
-      payload.createdAt = serverTimestamp();
-      payload.createdBy = currentUser?.email || currentUser?.uid || "unknown";
-    }
-
-    await setDoc(docRef, payload, { merge: true });
-    closeSaleForm();
-    showToast(`บันทึกข้อมูลวันที่ ${dateFmt(date)} เรียบร้อยแล้ว`, "success");
-
-    loadDashboard();
-    loadDailySales();
-    loadHistory();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการบันทึก: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-/* =========================================================
-   DAILY SALES & TARGETS
-========================================================= */
-
-async function updateDailyTargetUI() {
-  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-  if ($("daily-month") && !$("daily-month").value) {
-    $("daily-month").value = selectedMonth;
-  }
-
-  const [y, m] = selectedMonth.split("-").map(Number);
-  const totalDays = daysInMonth(y, m);
-  const mTargetSatang = await getMonthlyTargetSatang(selectedMonth);
-  const dTargetSatang = totalDays ? Math.round(mTargetSatang / totalDays) : 0;
-
-  if ($("daily-target-month-label")) {
-    const dObj = new Date(y, m - 1, 1);
-    $("daily-target-month-label").textContent = `เป้าหมายเดือน ${dObj.toLocaleDateString("th-TH", { month: "long", year: "numeric" })}`;
-  }
-  if ($("daily-monthly-target-input")) {
-    $("daily-monthly-target-input").value = parseTHB(mTargetSatang);
-  }
-  if ($("daily-calc-target")) {
-    $("daily-calc-target").value = money(dTargetSatang);
-  }
-}
-
-$("btn-save-monthly-target")?.addEventListener("click", async () => {
-  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-  const inputValue = parseFloat($("daily-monthly-target-input")?.value || 0);
-
-  if (isNaN(inputValue) || inputValue < 0) {
-    return showToast("กรุณาระบุ Monthly Target ให้ถูกต้อง", "error");
-  }
-
-  const monthlyTargetSatang = inputToSatang(inputValue);
-
-  try {
-    showLoading(true);
-    await setDoc(
-      doc(db, "targets", selectedMonth),
-      {
-        monthlyTargetSatang,
-        updatedAt: serverTimestamp(),
-        updatedBy: currentUser?.email || "unknown"
-      },
-      { merge: true }
-    );
-
-    monthTargets[selectedMonth] = monthlyTargetSatang;
-    showToast(`อัปเดตเป้าหมายเดือน ${selectedMonth} สำเร็จ`, "success");
-
-    await updateDailyTargetUI();
-    loadDailySales();
-    loadDashboard();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการตั้ง Target: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-async function loadDailySales() {
-  showLoading(true);
-  try {
-    await updateDailyTargetUI();
-    const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-    const [y, m] = selectedMonth.split("-").map(Number);
-
-    const rows = await getMonthSales(y, m);
-    const search = ($("daily-search")?.value || "").toLowerCase().trim();
-
-    dailyFiltered = rows.filter(row => {
-      const matchSearch =
-        !search ||
-        row.date.includes(search) ||
-        (row.updatedBy || "").toLowerCase().includes(search);
-      return matchSearch;
-    });
-
-    renderDailyTable();
-  } catch (err) {
-    console.error("Daily sales error:", err);
-  } finally {
-    showLoading(false);
-  }
-}
-
-function renderDailyTable() {
-  if (!$("daily-table-body")) return;
-
-  const totalPages = Math.ceil(dailyFiltered.length / PAGE_SIZE) || 1;
-  if (dailyPage > totalPages) dailyPage = totalPages;
-  if (dailyPage < 1) dailyPage = 1;
-
-  const start = (dailyPage - 1) * PAGE_SIZE;
-  const pageRows = dailyFiltered.slice(start, start + PAGE_SIZE);
-
-  if ($("daily-count")) $("daily-count").textContent = `${dailyFiltered.length} records`;
-  if ($("daily-page-info")) $("daily-page-info").textContent = `Page ${dailyPage} / ${totalPages}`;
-
-  if ($("daily-prev")) $("daily-prev").disabled = dailyPage <= 1;
-  if ($("daily-next")) $("daily-next").disabled = dailyPage >= totalPages;
-
-  $("daily-table-body").innerHTML = pageRows.map(row => `
-    <tr class="hover:bg-slate-50 border-b border-neutral-100">
-      <td class="p-3 font-semibold text-uno-charcoal">${dateFmt(row.date)}</td>
-      <td class="p-3 text-right font-bold text-uno-red">${money(row.totalSalesSatang)}</td>
-      <td class="p-3 text-right">${money(row.payments?.cash)}</td>
-      <td class="p-3 text-right">${money(row.payments?.creditCard)}</td>
-      <td class="p-3 text-right">${money(row.payments?.qrPayment)}</td>
-      <td class="p-3 text-right">${money(row.payments?.promptPay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.trueMoney)}</td>
-      <td class="p-3 text-right">${money(row.payments?.bankTransfer)}</td>
-      <td class="p-3 text-right">${money(row.payments?.linePay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.alipay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.lineMan)}</td>
-      <td class="p-3 text-right">${money(row.payments?.grab)}</td>
-      <td class="p-3 text-center">${row.voidBill || 0}</td>
-      <td class="p-3 text-neutral-500">${esc(row.updatedBy || "-")}</td>
-      <td class="p-3 text-center space-x-1">
-        <button class="btn-edit-row px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-lg text-[10px]" data-date="${row.date}">Edit</button>
-        <button class="btn-delete-row px-2 py-1 bg-red-50 hover:bg-red-100 text-uno-red font-bold rounded-lg text-[10px]" data-date="${row.date}">Delete</button>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="15" class="p-6 text-center text-neutral-400">ไม่พบข้อมูลบันทึกยอดขาย</td></tr>`;
-
-  // Attach dynamic handlers
-  document.querySelectorAll(".btn-edit-row").forEach(btn => {
-    btn.onclick = async () => {
-      const d = btn.dataset.date;
-      const docSnap = await getDoc(doc(db, "sales", d));
-      if (docSnap.exists()) openSaleForm(d, docSnap.data());
-    };
-  });
-
-  document.querySelectorAll(".btn-delete-row").forEach(btn => {
-    btn.onclick = () => {
-      activeDeleteDate = btn.dataset.date;
-      if ($("delete-date-target")) $("delete-date-target").textContent = dateFmt(activeDeleteDate);
-      $("modal-delete")?.classList.remove("hidden");
-    };
-  });
-}
-
-$("daily-month")?.addEventListener("change", () => loadDailySales());
-$("daily-search")?.addEventListener("input", () => {
-  dailyPage = 1;
-  loadDailySales();
-});
-
-$("daily-prev")?.addEventListener("click", () => {
-  if (dailyPage > 1) {
-    dailyPage--;
-    renderDailyTable();
-  }
-});
-
-$("daily-next")?.addEventListener("click", () => {
-  dailyPage++;
-  renderDailyTable();
-});
-
-$("btn-cancel-delete")?.addEventListener("click", () => {
-  $("modal-delete")?.classList.add("hidden");
-  activeDeleteDate = null;
-});
-
-$("btn-confirm-delete")?.addEventListener("click", async () => {
-  if (!activeDeleteDate) return;
-  try {
-    showLoading(true);
-    await deleteDoc(doc(db, "sales", activeDeleteDate));
-    $("modal-delete")?.classList.add("hidden");
-    showToast(`ลบข้อมูลวันที่ ${dateFmt(activeDeleteDate)} แล้ว`, "success");
-    activeDeleteDate = null;
-
-    loadDailySales();
-    loadDashboard();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการลบข้อมูล: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-/* =========================================================
-   HISTORY PAGE LOGIC
-========================================================= */
-
-async function loadHistory() {
-  showLoading(true);
-  try {
-    const now = new Date();
-    const rows = await getMonthSales(now.getFullYear(), now.getMonth() + 1);
-
-    if ($("history-table-body")) {
-      $("history-table-body").innerHTML = rows.map(row => {
-        const lastUpdated = row.updatedAt?.toDate ? row.updatedAt.toDate().toLocaleString("th-TH") : "—";
-        return `
-          <tr class="hover:bg-slate-50 border-b border-neutral-100">
-            <td class="p-3.5 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
-            <td class="p-3.5 text-right font-bold text-uno-red">${money(row.totalSalesSatang)}</td>
-            <td class="p-3.5 text-center">${row.voidBill || 0}</td>
-            <td class="p-3.5 text-neutral-600">${esc(row.updatedBy || "-")}</td>
-            <td class="p-3.5 text-neutral-400 text-[11px]">${lastUpdated}</td>
-          </tr>
-        `;
-      }).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ยังไม่มีประวัติการบันทึก</td></tr>`;
-    }
-  } catch (err) {
-    console.error("History error:", err);
-  } finally {
-    showLoading(false);
-  }
-}
-
-/* =========================================================
-   REPORTS PAGE LOGIC
-========================================================= */
-
-async function loadReports() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-
-  const defaultFrom = `${year}-${monthStr}-01`;
-  const defaultTo = `${year}-${monthStr}-${daysInMonth(year, now.getMonth() + 1)}`;
-
-  if ($("report-from") && !$("report-from").value) $("report-from").value = defaultFrom;
-  if ($("report-to") && !$("report-to").value) $("report-to").value = defaultTo;
-
-  const from = $("report-from").value;
-  const to = $("report-to").value;
-
-  showLoading(true);
-  try {
-    const rows = await getSales(from, to);
-    const monthKey = from.slice(0, 7);
-    const mTargetSatang = await getMonthlyTargetSatang(monthKey);
-    const daysCount = daysInMonth(parseInt(monthKey.split("-")[0]), parseInt(monthKey.split("-")[1]));
-
-    let total = 0;
-    let voids = 0;
-    const channelTotals = {};
-
-    rows.forEach(row => {
-      total += row.totalSalesSatang || 0;
-      voids += row.voidBill || 0;
-      channels.forEach(ch => {
-        channelTotals[ch] = (channelTotals[ch] || 0) + (row.payments?.[ch] || 0);
-      });
-    });
-
-    // Report Charts Render
-    reportTrendChart?.destroy();
-    if ($("chart-report-trend")) {
-      reportTrendChart = new Chart($("chart-report-trend"), {
-        type: "bar",
-        data: {
-          labels: rows.map(r => dateFmt(r.date)),
-          datasets: [{
-            label: "Total Sales",
-            data: rows.map(r => parseTHB(r.totalSalesSatang)),
-            backgroundColor: "#D93829",
-            borderRadius: 6
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    reportPieChart?.destroy();
-    const entries = Object.entries(channelTotals).filter(([, val]) => val > 0);
-    if ($("chart-report-pie")) {
-      reportPieChart = new Chart($("chart-report-pie"), {
-        type: "pie",
-        data: {
-          labels: entries.map(([k]) => channelLabels[k] || k),
-          datasets: [{
-            data: entries.map(([, v]) => parseTHB(v)),
-            backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"]
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    if ($("report-insights")) {
-      $("report-insights").innerHTML = `
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Sales Recorded</span>
-          <strong class="text-sm font-black text-uno-red">${money(total)}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Average Sales / Day</span>
-          <strong class="text-sm font-black text-uno-charcoal">${money(rows.length ? Math.round(total / rows.length) : 0)}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Voids Count</span>
-          <strong class="text-sm font-black text-uno-red">${voids.toLocaleString()}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Recorded Days</span>
-          <strong class="text-sm font-black text-uno-charcoal">${rows.length} Days</strong>
-        </div>
-      `;
-    }
-  } catch (err) {
-    console.error("Reports error:", err);
-  } finally {
-    showLoading(false);
-  }
-}
-
-$("btn-report-refresh")?.addEventListener("click", () => loadReports());
-const db = getFirestore(app);
-
-/* =========================================================
-   STATE MANAGEMENT
-========================================================= */
-
-let currentUser = null;
-let monthTargets = {};
-let activeDeleteDate = null;
-let editingDate = null;
-
-let dailyFiltered = [];
-let dailyPage = 1;
-const PAGE_SIZE = 10;
-
-let trendChart = null;
-let mixChart = null;
-let targetChart = null;
-let reportTrendChart = null;
-let reportPieChart = null;
-
-/* =========================================================
-   CONSTANTS & LABELS
-========================================================= */
-
-const channels = [
-  "cash",
-  "creditCard",
-  "qrPayment",
-  "promptPay",
-  "trueMoney",
-  "bankTransfer",
-  "linePay",
-  "alipay",
-  "lineMan",
-  "grab"
-];
-
-const channelLabels = {
-  cash: "Cash",
-  creditCard: "Credit Card",
-  qrPayment: "QR Payment",
-  promptPay: "PromptPay",
-  trueMoney: "TrueMoney",
-  bankTransfer: "Bank Transfer",
-  linePay: "Line Pay",
-  alipay: "Alipay",
-  lineMan: "Line Man",
-  grab: "Grab"
+  calculatePaymentSum();
+  modal.classList.remove('hidden');
 };
 
-/* =========================================================
-   HYBRID DATA MAPPER & CONVERTER
-   (รองรับทั้งกรณี DB เดิมเก็บเป็น "บาท" หรือ "สตางค์")
-========================================================= */
-
-const $ = id => document.getElementById(id);
-
-// แปลงจาก Form Input เป็น Satang เมื่อจะบันทึกลง Database
-const inputToSatang = value => Math.round((parseFloat(value) || 0) * 100);
-
-// อ่านค่าจาก DB และแปลงเป็นหน่วย THB Baht แบบปลอดภัย
-const parseTHB = value => {
-  const num = parseFloat(value) || 0;
-  if (num > 1000000) return num / 100; // หากค่าเกินล้าน แสดงว่าเป็น Satang
-  return num; // หากค่าน้อยกว่า แสดงว่าเป็น Baht
-};
-
-const parseSatang = value => Math.round(parseTHB(value) * 100);
-
-const money = valueInBahtOrSatang => {
-  const baht = parseTHB(valueInBahtOrSatang);
-  return "฿" + baht.toLocaleString("th-TH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
-const esc = value =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    }[char])
-  );
-
-const dateFmt = date => {
-  if (!date) return "—";
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
-};
-
-const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
-
-function showLoading(show = true) {
-  const loader = $("global-loading");
-  if (loader) {
-    if (show) loader.classList.remove("hidden");
-    else loader.classList.add("hidden");
-  }
+function closeSaleModal() {
+  document.getElementById('modal-sale').classList.add('hidden');
 }
 
-function showToast(message, type = "info") {
-  const container = $("toast-container");
-  if (!container) return;
-
-  const toast = document.createElement("div");
-  const bg =
-    type === "success"
-      ? "bg-emerald-600"
-      : type === "error"
-      ? "bg-uno-red"
-      : "bg-neutral-800";
-
-  toast.className = `${bg} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto flex items-center justify-between gap-2`;
-  toast.innerHTML = `<span>${esc(message)}</span><button class="opacity-70 hover:opacity-100 font-bold ml-2">✕</button>`;
-
-  toast.querySelector("button").onclick = () => toast.remove();
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.remove("opacity-0", "translate-y-2");
-  }, 10);
-
-  setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
-}
-
-// Normalizer ช่วยแปลง Field Structure เดิมของ DB ให้กลายเป็น Standard Object
-function normalizeDocument(raw) {
-  const total = raw.totalSalesSatang ?? raw.totalSales ?? raw.total_sales ?? 0;
-  const voidBill = raw.voidBill ?? raw.void_bill ?? raw.voidCount ?? 0;
-  
-  const payments = {};
-  channels.forEach(ch => {
-    payments[ch] = parseSatang(raw.payments?.[ch] ?? raw[ch] ?? 0);
+function calculatePaymentSum() {
+  const fields = ['cash', 'creditCard', 'qrPayment', 'promptPay', 'trueMoney', 'bankTransfer', 'linePay', 'alipay', 'lineMan', 'grab'];
+  let sum = 0;
+  fields.forEach(id => {
+    sum += parseFloat(document.getElementById(id).value) || 0;
   });
 
-  return {
-    date: raw.date || raw._id,
-    totalSalesSatang: parseSatang(total),
-    totalSalesBaht: parseTHB(total),
-    payments,
-    voidBill: parseInt(voidBill, 10) || 0,
-    updatedBy: raw.updatedBy || raw.createdBy || "System",
-    updatedAt: raw.updatedAt || null
-  };
-}
+  const totalInput = parseFloat(document.getElementById('sale-total').value) || 0;
+  const sumDisplay = document.getElementById('val-sum');
+  const statusDisplay = document.getElementById('val-status');
 
-async function getMonthlyTargetSatang(monthKey) {
-  if (monthTargets[monthKey] !== undefined) {
-    return monthTargets[monthKey];
-  }
-  try {
-    const docSnap = await getDoc(doc(db, "targets", monthKey));
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const val = data.monthlyTargetSatang ?? data.monthlyTarget ?? data.target ?? 0;
-      monthTargets[monthKey] = parseSatang(val);
-    } else {
-      monthTargets[monthKey] = 0;
-    }
-  } catch (e) {
-    console.error("Fetch target error:", e);
-    monthTargets[monthKey] = 0;
-  }
-  return monthTargets[monthKey];
-}
+  sumDisplay.textContent = formatCurrency(sum);
 
-/* =========================================================
-   PAGE NAVIGATION
-========================================================= */
-
-function setActivePage(id) {
-  document.querySelectorAll(".page").forEach(page => {
-    page.classList.toggle("hidden", page.id !== id);
-  });
-
-  document.querySelectorAll(".nav-btn").forEach(button => {
-    const isActive = button.dataset.page === id;
-    button.classList.toggle("active", isActive);
-    if (isActive) {
-      button.classList.remove("text-neutral-300");
-      button.classList.add("text-white", "bg-uno-red");
-    } else {
-      button.classList.remove("text-white", "bg-uno-red");
-      button.classList.add("text-neutral-300");
-    }
-  });
-
-  if (id === "page-dashboard") loadDashboard();
-  if (id === "page-daily") loadDailySales();
-  if (id === "page-history") loadHistory();
-  if (id === "page-reports") loadReports();
-}
-
-document.querySelectorAll(".nav-btn").forEach(button => {
-  button.addEventListener("click", () => {
-    const pageId = button.dataset.page;
-    if (pageId) setActivePage(pageId);
-  });
-});
-
-/* =========================================================
-   AUTHENTICATION
-========================================================= */
-
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    currentUser = user;
-    if ($("user-display")) $("user-display").textContent = user.email || "Manager";
-    if ($("admin-display-email")) $("admin-display-email").textContent = user.email || "Manager";
-
-    $("login-section")?.classList.add("hidden");
-    $("app-section")?.classList.remove("hidden");
-
-    loadDashboard();
+  if (Math.abs(sum - totalInput) < 0.01 && totalInput > 0) {
+    statusDisplay.textContent = 'ยอดรวมตรงกัน';
+    statusDisplay.className = 'font-bold text-emerald-600';
   } else {
-    $("login-section")?.classList.remove("hidden");
-    $("app-section")?.classList.add("hidden");
-  }
-});
-
-$("login-form")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  $("login-error")?.classList.add("hidden");
-  if ($("btn-login")) $("btn-login").disabled = true;
-
-  try {
-    showLoading(true);
-    await signInWithEmailAndPassword(
-      auth,
-      $("login-email").value,
-      $("login-password").value
-    );
-    showToast("เข้าสู่ระบบสำเร็จ", "success");
-  } catch (error) {
-    if ($("login-error")) {
-      $("login-error").textContent = "เข้าสู่ระบบไม่สำเร็จ: " + error.message;
-      $("login-error").classList.remove("hidden");
-    }
-    showToast("เข้าสู่ระบบไม่สำเร็จ", "error");
-  } finally {
-    showLoading(false);
-    if ($("btn-login")) $("btn-login").disabled = false;
-  }
-});
-
-if ($("btn-logout")) {
-  $("btn-logout").onclick = async () => {
-    await signOut(auth);
-    showToast("ออกจากระบบแล้ว", "info");
-  };
-}
-
-/* =========================================================
-   FIRESTORE SALES DATA SERVICES
-========================================================= */
-
-async function getSales(from, to) {
-  try {
-    const snapshot = await getDocs(
-      query(
-        collection(db, "sales"),
-        where("date", ">=", from),
-        where("date", "<=", to)
-      )
-    );
-
-    const rows = [];
-    snapshot.forEach(docSnap => {
-      rows.push(normalizeDocument({ ...docSnap.data(), _id: docSnap.id }));
-    });
-
-    return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  } catch (err) {
-    console.error("Fetch sales error:", err);
-    showToast("ไม่สามารถโหลดข้อมูลยอดขายได้", "error");
-    return [];
+    statusDisplay.textContent = 'ยอดชำระไม่ตรงกับ Total Sales';
+    statusDisplay.className = 'font-bold text-uno-red';
   }
 }
 
-async function getMonthSales(year, month) {
-  const now = new Date();
-  const targetYear = year || now.getFullYear();
-  const targetMonth = month || now.getMonth() + 1;
-  const monthStr = String(targetMonth).padStart(2, "0");
-
-  return getSales(
-    `${targetYear}-${monthStr}-01`,
-    `${targetYear}-${monthStr}-${daysInMonth(targetYear, targetMonth)}`
-  );
-}
-
-/* =========================================================
-   DASHBOARD LOGIC
-========================================================= */
-
-async function loadDashboard() {
-  showLoading(true);
-  try {
-    const now = new Date();
-    const rows = await getMonthSales();
-    const today = now.toISOString().split("T")[0];
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
-
-    const monthlyTargetSatang = await getMonthlyTargetSatang(currentMonthKey);
-    const totalDaysInMonth = daysInMonth(year, month);
-    const dailyTargetSatang = totalDaysInMonth ? Math.round(monthlyTargetSatang / totalDaysInMonth) : 0;
-
-    const total = rows.reduce((sum, row) => sum + (row.totalSalesSatang || 0), 0);
-    const todayRow = rows.find(row => row.date === today);
-    const todaySales = todayRow?.totalSalesSatang || 0;
-    const recordDays = rows.length;
-    const dayOfMonth = now.getDate();
-
-    const avg = recordDays ? Math.round(total / recordDays) : 0;
-    const projection = dayOfMonth ? Math.round((total / dayOfMonth) * totalDaysInMonth) : 0;
-
-    const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
-
-    let voids = 0;
-    const channelTotals = {};
-
-    rows.forEach(row => {
-      voids += row.voidBill || 0;
-      channels.forEach(channel => {
-        channelTotals[channel] = (channelTotals[channel] || 0) + (row.payments?.[channel] || 0);
-      });
-    });
-
-    if ($("dash-period")) $("dash-period").textContent = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(now);
-    if ($("dash-today-sales")) $("dash-today-sales").textContent = money(todaySales);
-    if ($("dash-mtd-sales")) $("dash-mtd-sales").textContent = money(total);
-    if ($("dash-avg-day")) $("dash-avg-day").textContent = money(avg);
-    if ($("dash-record-days")) $("dash-record-days").textContent = `${recordDays} recorded days`;
-    if ($("dash-projection")) $("dash-projection").textContent = money(projection);
-    if ($("dash-void-bills")) $("dash-void-bills").textContent = voids.toLocaleString();
-
-    if ($("dash-best-day")) {
-      $("dash-best-day").textContent = best
-        ? `Best: ${dateFmt(best.date)} · ${money(best.totalSalesSatang)}`
-        : "Best day —";
-    }
-
-    const todayAchievement = dailyTargetSatang ? (todaySales / dailyTargetSatang) * 100 : 0;
-    const monthAchievement = monthlyTargetSatang ? (total / monthlyTargetSatang) * 100 : 0;
-
-    if ($("dash-today-target")) $("dash-today-target").textContent = `${todayAchievement.toFixed(1)}% Target`;
-    if ($("dash-mtd-target")) $("dash-mtd-target").textContent = `${monthAchievement.toFixed(1)}% Target`;
-    if ($("dash-target-actual")) $("dash-target-actual").textContent = money(total);
-    if ($("dash-target-value")) $("dash-target-value").textContent = money(monthlyTargetSatang);
-
-    if ($("dash-projection-status")) {
-      const onTrack = projection >= monthlyTargetSatang;
-      $("dash-projection-status").textContent = onTrack ? "On track" : "Below target";
-      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}`;
-    }
-
-    renderDashboardCharts(rows, channelTotals, total, monthlyTargetSatang, dailyTargetSatang);
-    renderDashboardAlerts(rows, todaySales, voids, projection, monthlyTargetSatang, dailyTargetSatang);
-    renderRecent(rows, dailyTargetSatang);
-  } catch (error) {
-    console.error("Dashboard error:", error);
-  } finally {
-    showLoading(false);
-  }
-}
-
-$("btn-dash-refresh")?.addEventListener("click", () => {
-  loadDashboard();
-  showToast("อัปเดตข้อมูลแดชบอร์ดแล้ว", "info");
-});
-
-/* =========================================================
-   CHARTS RENDERING
-========================================================= */
-
-function renderDashboardCharts(rows, channelsTotal, total, monthlyTargetSatang, dailyTargetSatang) {
-  const now = new Date();
-  const days = daysInMonth(now.getFullYear(), now.getMonth() + 1);
-  const labels = Array.from({ length: days }, (_, index) => String(index + 1).padStart(2, "0"));
-  const map = Object.fromEntries(rows.map(row => [row.date, parseTHB(row.totalSalesSatang)]));
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const data = labels.map(day => map[`${year}-${month}-${day}`] || 0);
-
-  trendChart?.destroy();
-  if ($("chart-sales-trend")) {
-    trendChart = new Chart($("chart-sales-trend"), {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          { label: "Actual Sales", data, borderColor: "#D93829", backgroundColor: "rgba(217, 56, 41, 0.08)", fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: "#D93829" },
-          { label: "Daily Target", data: labels.map(() => parseTHB(dailyTargetSatang)), borderColor: "#111111", borderDash: [4, 4], pointRadius: 0, tension: 0 }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  targetChart?.destroy();
-  if ($("chart-target")) {
-    targetChart = new Chart($("chart-target"), {
-      type: "doughnut",
-      data: {
-        labels: ["Actual", "Remaining"],
-        datasets: [{
-          data: [parseTHB(total), Math.max(0, parseTHB(monthlyTargetSatang - total))],
-          backgroundColor: ["#D93829", "#E5E7EB"],
-          borderWidth: 0
-        }]
-      },
-      options: { cutout: "75%", responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  mixChart?.destroy();
-  const entries = Object.entries(channelsTotal).filter(([, value]) => value > 0);
-  if ($("chart-payment-mix")) {
-    mixChart = new Chart($("chart-payment-mix"), {
-      type: "doughnut",
-      data: {
-        labels: entries.map(([key]) => channelLabels[key] || key),
-        datasets: [{
-          data: entries.map(([, value]) => parseTHB(value)),
-          backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"],
-          borderWidth: 1
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  }
-
-  const sum = entries.reduce((tot, [, val]) => tot + val, 0);
-  if ($("dash-payment-summary")) {
-    $("dash-payment-summary").innerHTML = entries.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([key, value]) => `
-      <div class="flex justify-between text-xs">
-        <span class="text-neutral-500">${esc(channelLabels[key] || key)}</span>
-        <strong>${money(value)} <span class="text-neutral-400 font-normal">${sum ? ((value / sum) * 100).toFixed(1) : 0}%</span></strong>
-      </div>
-    `).join("") || `<div class="text-xs text-neutral-400">ยังไม่มีข้อมูล</div>`;
-  }
-}
-
-function renderDashboardAlerts(rows, today, voids, projection, monthlyTargetSatang, dailyTargetSatang) {
-  const alerts = [];
-  if (today === 0) alerts.push(["warning", "ยังไม่มีการบันทึกยอดขายของวันนี้"]);
-  if (today > 0 && today < dailyTargetSatang) alerts.push(["warning", `ยอดวันนี้ต่ำกว่า Daily Target ${money(dailyTargetSatang - today)}`]);
-  if (projection < monthlyTargetSatang) alerts.push(["warning", "Projection สิ้นเดือนยังต่ำกว่า Monthly Target"]);
-  if (voids > 0) alerts.push(["danger", `พบ Void Bills สะสม ${voids.toLocaleString()} บิล`]);
-  if (!alerts.length) alerts.push(["success", "ผลการดำเนินงานอยู่ในเกณฑ์ปกติ"]);
-
-  if ($("dash-alerts")) {
-    $("dash-alerts").innerHTML = alerts.map(([type, message]) => `
-      <div class="flex items-center gap-3 p-3 rounded-xl ${type === "danger" ? "bg-red-50 text-uno-red border border-red-100" : type === "warning" ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-emerald-50 text-emerald-800 border border-emerald-100"}">
-        <div class="flex-1 text-xs font-semibold">${esc(message)}</div>
-      </div>
-    `).join("");
-  }
-}
-
-function renderRecent(rows, dailyTargetSatang) {
-  if (!$("recent-sales-body")) return;
-  const recent = rows.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
-
-  $("recent-sales-body").innerHTML = recent.map(row => `
-    <tr>
-      <td class="p-2 font-semibold">${dateFmt(row.date)}</td>
-      <td class="p-2 text-right font-bold">${money(row.totalSalesSatang)}</td>
-      <td class="p-2 text-right">${dailyTargetSatang ? ((row.totalSalesSatang / dailyTargetSatang) * 100).toFixed(1) : 0}%</td>
-      <td class="p-2 text-center">
-        <span class="pill ${row.totalSalesSatang >= dailyTargetSatang ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}">
-          ${row.totalSalesSatang >= dailyTargetSatang ? "Above" : "Below"}
-        </span>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="4" class="p-4 text-center text-neutral-400">ยังไม่มีข้อมูล</td></tr>`;
-}
-
-/* =========================================================
-   SALE MODAL & FORM LOGIC
-========================================================= */
-
-function updateFormValidation() {
-  const total = parseFloat($("sale-total")?.value || 0);
-  let paySum = 0;
-  channels.forEach(ch => paySum += parseFloat($(ch)?.value || 0));
-
-  if ($("val-sum")) $("val-sum").textContent = "฿" + paySum.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-  const isMatch = Math.abs(total - paySum) < 0.01;
+function handleSaleSubmit(e) {
+  e.preventDefault();
   
-  if ($("val-status")) {
-    $("val-status").textContent = isMatch ? "Total Sales ตรงกับ Sum Breakdown" : "Total Sales ไม่ตรงกับ Sum Breakdown";
-    $("val-status").className = `font-bold ${isMatch ? "text-emerald-600" : "text-uno-red"}`;
-  }
-}
-
-function openSaleForm(date = "", rawDoc = null) {
-  const row = rawDoc ? normalizeDocument(rawDoc) : null;
-  editingDate = row ? date : null;
-
-  if ($("sale-modal-title")) $("sale-modal-title").textContent = row ? "แก้ไขยอดขายประจำวัน" : "บันทึกยอดขายประจำวัน";
-  if ($("sale-date")) $("sale-date").value = row?.date || date || new Date().toISOString().split("T")[0];
-  if ($("sale-total")) $("sale-total").value = row ? row.totalSalesBaht : "";
-
-  channels.forEach(channel => {
-    const input = $(channel);
-    if (input) input.value = row ? parseTHB(row.payments?.[channel] || 0) : "0";
-  });
-
-  if ($("sale-void")) $("sale-void").value = row?.voidBill || 0;
-  updateFormValidation();
-  $("modal-sale")?.classList.remove("hidden");
-}
-
-function closeSaleForm() {
-  $("modal-sale")?.classList.add("hidden");
-  editingDate = null;
-}
-
-$("btn-open-sale")?.addEventListener("click", () => openSaleForm());
-$("btn-close-sale")?.addEventListener("click", closeSaleForm);
-$("btn-cancel-sale")?.addEventListener("click", closeSaleForm);
-$("sale-total")?.addEventListener("input", updateFormValidation);
-channels.forEach(ch => $(ch)?.addEventListener("input", updateFormValidation));
-
-$("form-daily-sales")?.addEventListener("submit", async event => {
-  event.preventDefault();
-  const date = $("sale-date").value;
-  const totalSalesSatang = inputToSatang($("sale-total").value);
-
-  if (!date) return showToast("กรุณาเลือกวันที่", "error");
-  if (totalSalesSatang <= 0) return showToast("กรุณาระบุยอดขายให้ถูกต้อง", "error");
-
-  const payments = {};
-  channels.forEach(channel => payments[channel] = inputToSatang($(channel)?.value || 0));
-  const paymentTotal = Object.values(payments).reduce((sum, value) => sum + value, 0);
-
-  if (Math.abs(paymentTotal - totalSalesSatang) > 1) {
-    return showToast(`ยอด Breakdown (${money(paymentTotal)}) ไม่ตรงกับ Total Sales (${money(totalSalesSatang)})`, "error");
-  }
-
-  const payload = {
+  const date = document.getElementById('sale-date').value;
+  const totalSales = parseFloat(document.getElementById('sale-total').value) || 0;
+  
+  const newRecord = {
     date,
-    totalSalesSatang,
-    payments,
-    voidBill: parseInt($("sale-void")?.value || 0, 10),
-    updatedAt: serverTimestamp(),
-    updatedBy: currentUser?.email || currentUser?.uid || "unknown"
+    totalSales,
+    cash: parseFloat(document.getElementById('cash').value) || 0,
+    creditCard: parseFloat(document.getElementById('creditCard').value) || 0,
+    qrPayment: parseFloat(document.getElementById('qrPayment').value) || 0,
+    promptPay: parseFloat(document.getElementById('promptPay').value) || 0,
+    trueMoney: parseFloat(document.getElementById('trueMoney').value) || 0,
+    bankTransfer: parseFloat(document.getElementById('bankTransfer').value) || 0,
+    linePay: parseFloat(document.getElementById('linePay').value) || 0,
+    alipay: parseFloat(document.getElementById('alipay').value) || 0,
+    lineMan: parseFloat(document.getElementById('lineMan').value) || 0,
+    grab: parseFloat(document.getElementById('grab').value) || 0,
+    voidBills: parseInt(document.getElementById('sale-void').value) || 0,
+    updatedBy: state.currentUser,
+    lastUpdated: new Date().toLocaleString('th-TH')
   };
 
-  try {
-    showLoading(true);
-    const docRef = doc(db, "sales", date);
-    const existing = await getDoc(docRef);
-
-    if (!existing.exists()) {
-      payload.createdAt = serverTimestamp();
-      payload.createdBy = currentUser?.email || currentUser?.uid || "unknown";
-    }
-
-    await setDoc(docRef, payload, { merge: true });
-    closeSaleForm();
-    showToast(`บันทึกข้อมูลวันที่ ${dateFmt(date)} เรียบร้อยแล้ว`, "success");
-
-    loadDashboard();
-    loadDailySales();
-    loadHistory();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการบันทึก: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-/* =========================================================
-   DAILY SALES & TARGETS
-========================================================= */
-
-async function updateDailyTargetUI() {
-  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-  if ($("daily-month") && !$("daily-month").value) {
-    $("daily-month").value = selectedMonth;
+  const existingIdx = state.salesData.findIndex(d => d.date === date);
+  if (existingIdx >= 0) {
+    state.salesData[existingIdx] = newRecord;
+  } else {
+    state.salesData.push(newRecord);
   }
 
-  const [y, m] = selectedMonth.split("-").map(Number);
-  const totalDays = daysInMonth(y, m);
-  const mTargetSatang = await getMonthlyTargetSatang(selectedMonth);
-  const dTargetSatang = totalDays ? Math.round(mTargetSatang / totalDays) : 0;
+  saveDataToStorage();
+  closeSaleModal();
+  refreshAllData();
+  showToast(`บันทึกยอดขายวันที่ ${date} สำเร็จ`);
+}
 
-  if ($("daily-target-month-label")) {
-    const dObj = new Date(y, m - 1, 1);
-    $("daily-target-month-label").textContent = `เป้าหมายเดือน ${dObj.toLocaleDateString("th-TH", { month: "long", year: "numeric" })}`;
-  }
-  if ($("daily-monthly-target-input")) {
-    $("daily-monthly-target-input").value = parseTHB(mTargetSatang);
-  }
-  if ($("daily-calc-target")) {
-    $("daily-calc-target").value = money(dTargetSatang);
+// Delete Record Handling
+window.openDeleteModal = function(date) {
+  state.deleteTargetDate = date;
+  document.getElementById('delete-date-target').textContent = date;
+  document.getElementById('modal-delete').classList.remove('hidden');
+};
+
+function closeDeleteModal() {
+  state.deleteTargetDate = null;
+  document.getElementById('modal-delete').classList.add('hidden');
+}
+
+function handleConfirmDelete() {
+  if (!state.deleteTargetDate) return;
+  
+  state.salesData = state.salesData.filter(d => d.date !== state.deleteTargetDate);
+  saveDataToStorage();
+  closeDeleteModal();
+  refreshAllData();
+  showToast('ลบข้อมูลยอดขายเรียบร้อยแล้ว');
+}
+
+// Target Manager Handling
+function handleSaveMonthlyTarget() {
+  const currentMonth = document.getElementById('daily-month').value || new Date().toISOString().substring(0, 7);
+  const val = parseFloat(document.getElementById('daily-monthly-target-input').value) || 0;
+
+  state.monthlyTargets[currentMonth] = val;
+  saveTargetsToStorage();
+  refreshAllData();
+  showToast(`บันทึกเป้าหมายเดือน ${currentMonth} เรียบร้อยแล้ว`);
+}
+
+// Admin Reset
+function handleDatabaseReset() {
+  if (confirm('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้น?')) {
+    localStorage.removeItem('uno_sales_data');
+    localStorage.removeItem('uno_targets_data');
+    initStorage();
+    refreshAllData();
+    showToast('รีเซ็ตข้อมูลตัวอย่างสำเร็จ');
   }
 }
 
-$("btn-save-monthly-target")?.addEventListener("click", async () => {
-  const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-  const inputValue = parseFloat($("daily-monthly-target-input")?.value || 0);
-
-  if (isNaN(inputValue) || inputValue < 0) {
-    return showToast("กรุณาระบุ Monthly Target ให้ถูกต้อง", "error");
-  }
-
-  const monthlyTargetSatang = inputToSatang(inputValue);
-
-  try {
-    showLoading(true);
-    await setDoc(
-      doc(db, "targets", selectedMonth),
-      {
-        monthlyTargetSatang,
-        updatedAt: serverTimestamp(),
-        updatedBy: currentUser?.email || "unknown"
-      },
-      { merge: true }
-    );
-
-    monthTargets[selectedMonth] = monthlyTargetSatang;
-    showToast(`อัปเดตเป้าหมายเดือน ${selectedMonth} สำเร็จ`, "success");
-
-    await updateDailyTargetUI();
-    loadDailySales();
-    loadDashboard();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการตั้ง Target: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-async function loadDailySales() {
-  showLoading(true);
-  try {
-    await updateDailyTargetUI();
-    const selectedMonth = $("daily-month")?.value || new Date().toISOString().slice(0, 7);
-    const [y, m] = selectedMonth.split("-").map(Number);
-
-    const rows = await getMonthSales(y, m);
-    const search = ($("daily-search")?.value || "").toLowerCase().trim();
-
-    dailyFiltered = rows.filter(row => {
-      const matchSearch =
-        !search ||
-        row.date.includes(search) ||
-        (row.updatedBy || "").toLowerCase().includes(search);
-      return matchSearch;
-    });
-
-    renderDailyTable();
-  } catch (err) {
-    console.error("Daily sales error:", err);
-  } finally {
-    showLoading(false);
-  }
-}
-
-function renderDailyTable() {
-  if (!$("daily-table-body")) return;
-
-  const totalPages = Math.ceil(dailyFiltered.length / PAGE_SIZE) || 1;
-  if (dailyPage > totalPages) dailyPage = totalPages;
-  if (dailyPage < 1) dailyPage = 1;
-
-  const start = (dailyPage - 1) * PAGE_SIZE;
-  const pageRows = dailyFiltered.slice(start, start + PAGE_SIZE);
-
-  if ($("daily-count")) $("daily-count").textContent = `${dailyFiltered.length} records`;
-  if ($("daily-page-info")) $("daily-page-info").textContent = `Page ${dailyPage} / ${totalPages}`;
-
-  if ($("daily-prev")) $("daily-prev").disabled = dailyPage <= 1;
-  if ($("daily-next")) $("daily-next").disabled = dailyPage >= totalPages;
-
-  $("daily-table-body").innerHTML = pageRows.map(row => `
-    <tr class="hover:bg-slate-50 border-b border-neutral-100">
-      <td class="p-3 font-semibold text-uno-charcoal">${dateFmt(row.date)}</td>
-      <td class="p-3 text-right font-bold text-uno-red">${money(row.totalSalesSatang)}</td>
-      <td class="p-3 text-right">${money(row.payments?.cash)}</td>
-      <td class="p-3 text-right">${money(row.payments?.creditCard)}</td>
-      <td class="p-3 text-right">${money(row.payments?.qrPayment)}</td>
-      <td class="p-3 text-right">${money(row.payments?.promptPay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.trueMoney)}</td>
-      <td class="p-3 text-right">${money(row.payments?.bankTransfer)}</td>
-      <td class="p-3 text-right">${money(row.payments?.linePay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.alipay)}</td>
-      <td class="p-3 text-right">${money(row.payments?.lineMan)}</td>
-      <td class="p-3 text-right">${money(row.payments?.grab)}</td>
-      <td class="p-3 text-center">${row.voidBill || 0}</td>
-      <td class="p-3 text-neutral-500">${esc(row.updatedBy || "-")}</td>
-      <td class="p-3 text-center space-x-1">
-        <button class="btn-edit-row px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-lg text-[10px]" data-date="${row.date}">Edit</button>
-        <button class="btn-delete-row px-2 py-1 bg-red-50 hover:bg-red-100 text-uno-red font-bold rounded-lg text-[10px]" data-date="${row.date}">Delete</button>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="15" class="p-6 text-center text-neutral-400">ไม่พบข้อมูลบันทึกยอดขาย</td></tr>`;
-
-  // Attach dynamic handlers
-  document.querySelectorAll(".btn-edit-row").forEach(btn => {
-    btn.onclick = async () => {
-      const d = btn.dataset.date;
-      const docSnap = await getDoc(doc(db, "sales", d));
-      if (docSnap.exists()) openSaleForm(d, docSnap.data());
-    };
+// ==========================================
+// Chart.js Implementations
+// ==========================================
+function initCharts() {
+  // 1. Dashboard Sales Trend Chart
+  const ctxTrend = document.getElementById('chart-sales-trend').getContext('2d');
+  state.charts.salesTrend = new Chart(ctxTrend, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Sales (THB)', data: [], borderColor: '#D93829', backgroundColor: 'rgba(217,56,41,0.08)', fill: true, tension: 0.3 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 
-  document.querySelectorAll(".btn-delete-row").forEach(btn => {
-    btn.onclick = () => {
-      activeDeleteDate = btn.dataset.date;
-      if ($("delete-date-target")) $("delete-date-target").textContent = dateFmt(activeDeleteDate);
-      $("modal-delete")?.classList.remove("hidden");
-    };
+  // 2. Dashboard Target Doughnut Chart
+  const ctxTarget = document.getElementById('chart-target').getContext('2d');
+  state.charts.target = new Chart(ctxTarget, {
+    type: 'doughnut',
+    data: { labels: ['Achieved', 'Remaining'], datasets: [{ data: [0, 100], backgroundColor: ['#D93829', '#e2e8f0'] }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } }
+  });
+
+  // 3. Dashboard Payment Mix Chart
+  const ctxPayment = document.getElementById('chart-payment-mix').getContext('2d');
+  state.charts.paymentMix = new Chart(ctxPayment, {
+    type: 'pie',
+    data: { labels: ['Cash', 'Credit Card', 'QR / PromptPay', 'Delivery'], datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#111111', '#D93829', '#3b82f6', '#10b981'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  // 4. Report Trend Chart
+  const ctxReportTrend = document.getElementById('chart-report-trend').getContext('2d');
+  state.charts.reportTrend = new Chart(ctxReportTrend, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Sales', data: [], backgroundColor: '#D93829' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  // 5. Report Pie Chart
+  const ctxReportPie = document.getElementById('chart-report-pie').getContext('2d');
+  state.charts.reportPie = new Chart(ctxReportPie, {
+    type: 'doughnut',
+    data: { labels: ['Cash', 'QR/Transfer', 'Cards', 'Delivery'], datasets: [{ data: [0,0,0,0], backgroundColor: ['#111111', '#3b82f6', '#D93829', '#10b981'] }] },
+    options: { responsive: true, maintainAspectRatio: false }
   });
 }
 
-$("daily-month")?.addEventListener("change", () => loadDailySales());
-$("daily-search")?.addEventListener("input", () => {
-  dailyPage = 1;
-  loadDailySales();
-});
+function updateDashboardCharts(monthRecords, mtdSales, monthlyTarget) {
+  // Update Line Chart
+  const sorted = [...monthRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+  state.charts.salesTrend.data.labels = sorted.map(r => r.date.slice(8));
+  state.charts.salesTrend.data.datasets[0].data = sorted.map(r => r.totalSales);
+  state.charts.salesTrend.update();
 
-$("daily-prev")?.addEventListener("click", () => {
-  if (dailyPage > 1) {
-    dailyPage--;
-    renderDailyTable();
-  }
-});
+  // Update Doughnut Target
+  const remaining = Math.max(0, monthlyTarget - mtdSales);
+  state.charts.target.data.datasets[0].data = [mtdSales, remaining];
+  state.charts.target.update();
 
-$("daily-next")?.addEventListener("click", () => {
-  dailyPage++;
-  renderDailyTable();
-});
+  // Update Payment Mix
+  const cash = sorted.reduce((sum, r) => sum + (r.cash || 0), 0);
+  const card = sorted.reduce((sum, r) => sum + (r.creditCard || 0), 0);
+  const qr = sorted.reduce((sum, r) => sum + (r.qrPayment || 0) + (r.promptPay || 0), 0);
+  const delivery = sorted.reduce((sum, r) => sum + (r.lineMan || 0) + (r.grab || 0), 0);
 
-$("btn-cancel-delete")?.addEventListener("click", () => {
-  $("modal-delete")?.classList.add("hidden");
-  activeDeleteDate = null;
-});
-
-$("btn-confirm-delete")?.addEventListener("click", async () => {
-  if (!activeDeleteDate) return;
-  try {
-    showLoading(true);
-    await deleteDoc(doc(db, "sales", activeDeleteDate));
-    $("modal-delete")?.classList.add("hidden");
-    showToast(`ลบข้อมูลวันที่ ${dateFmt(activeDeleteDate)} แล้ว`, "success");
-    activeDeleteDate = null;
-
-    loadDailySales();
-    loadDashboard();
-  } catch (error) {
-    showToast("เกิดข้อผิดพลาดในการลบข้อมูล: " + error.message, "error");
-  } finally {
-    showLoading(false);
-  }
-});
-
-/* =========================================================
-   HISTORY PAGE LOGIC
-========================================================= */
-
-async function loadHistory() {
-  showLoading(true);
-  try {
-    const now = new Date();
-    const rows = await getMonthSales(now.getFullYear(), now.getMonth() + 1);
-
-    if ($("history-table-body")) {
-      $("history-table-body").innerHTML = rows.map(row => {
-        const lastUpdated = row.updatedAt?.toDate ? row.updatedAt.toDate().toLocaleString("th-TH") : "—";
-        return `
-          <tr class="hover:bg-slate-50 border-b border-neutral-100">
-            <td class="p-3.5 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
-            <td class="p-3.5 text-right font-bold text-uno-red">${money(row.totalSalesSatang)}</td>
-            <td class="p-3.5 text-center">${row.voidBill || 0}</td>
-            <td class="p-3.5 text-neutral-600">${esc(row.updatedBy || "-")}</td>
-            <td class="p-3.5 text-neutral-400 text-[11px]">${lastUpdated}</td>
-          </tr>
-        `;
-      }).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ยังไม่มีประวัติการบันทึก</td></tr>`;
-    }
-  } catch (err) {
-    console.error("History error:", err);
-  } finally {
-    showLoading(false);
-  }
+  state.charts.paymentMix.data.datasets[0].data = [cash, card, qr, delivery];
+  state.charts.paymentMix.update();
 }
 
-/* =========================================================
-   REPORTS PAGE LOGIC
-========================================================= */
+function updateReportSection() {
+  const fromDate = document.getElementById('report-from').value;
+  const toDate = document.getElementById('report-to').value;
 
-async function loadReports() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const filtered = state.salesData.filter(d => d.date >= fromDate && d.date <= toDate)
+                                  .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const defaultFrom = `${year}-${monthStr}-01`;
-  const defaultTo = `${year}-${monthStr}-${daysInMonth(year, now.getMonth() + 1)}`;
+  // Chart Updates
+  state.charts.reportTrend.data.labels = filtered.map(d => d.date);
+  state.charts.reportTrend.data.datasets[0].data = filtered.map(d => d.totalSales);
+  state.charts.reportTrend.update();
 
-  if ($("report-from") && !$("report-from").value) $("report-from").value = defaultFrom;
-  if ($("report-to") && !$("report-to").value) $("report-to").value = defaultTo;
+  const total = filtered.reduce((s, r) => s + r.totalSales, 0);
+  const cash = filtered.reduce((s, r) => s + (r.cash || 0), 0);
+  const qr = filtered.reduce((s, r) => s + (r.qrPayment || 0) + (r.promptPay || 0) + (r.bankTransfer || 0), 0);
+  const card = filtered.reduce((s, r) => s + (r.creditCard || 0), 0);
+  const delivery = filtered.reduce((s, r) => s + (r.lineMan || 0) + (r.grab || 0), 0);
 
-  const from = $("report-from").value;
-  const to = $("report-to").value;
+  state.charts.reportPie.data.datasets[0].data = [cash, qr, card, delivery];
+  state.charts.reportPie.update();
 
-  showLoading(true);
-  try {
-    const rows = await getSales(from, to);
-    const monthKey = from.slice(0, 7);
-    const mTargetSatang = await getMonthlyTargetSatang(monthKey);
-    const daysCount = daysInMonth(parseInt(monthKey.split("-")[0]), parseInt(monthKey.split("-")[1]));
-
-    let total = 0;
-    let voids = 0;
-    const channelTotals = {};
-
-    rows.forEach(row => {
-      total += row.totalSalesSatang || 0;
-      voids += row.voidBill || 0;
-      channels.forEach(ch => {
-        channelTotals[ch] = (channelTotals[ch] || 0) + (row.payments?.[ch] || 0);
-      });
-    });
-
-    // Report Charts Render
-    reportTrendChart?.destroy();
-    if ($("chart-report-trend")) {
-      reportTrendChart = new Chart($("chart-report-trend"), {
-        type: "bar",
-        data: {
-          labels: rows.map(r => dateFmt(r.date)),
-          datasets: [{
-            label: "Total Sales",
-            data: rows.map(r => parseTHB(r.totalSalesSatang)),
-            backgroundColor: "#D93829",
-            borderRadius: 6
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    reportPieChart?.destroy();
-    const entries = Object.entries(channelTotals).filter(([, val]) => val > 0);
-    if ($("chart-report-pie")) {
-      reportPieChart = new Chart($("chart-report-pie"), {
-        type: "pie",
-        data: {
-          labels: entries.map(([k]) => channelLabels[k] || k),
-          datasets: [{
-            data: entries.map(([, v]) => parseTHB(v)),
-            backgroundColor: ["#D93829", "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#A02010", "#801005"]
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    if ($("report-insights")) {
-      $("report-insights").innerHTML = `
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Sales Recorded</span>
-          <strong class="text-sm font-black text-uno-red">${money(total)}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Average Sales / Day</span>
-          <strong class="text-sm font-black text-uno-charcoal">${money(rows.length ? Math.round(total / rows.length) : 0)}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Voids Count</span>
-          <strong class="text-sm font-black text-uno-red">${voids.toLocaleString()}</strong>
-        </div>
-        <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
-          <span class="text-neutral-400 block text-[10px] font-bold uppercase">Total Recorded Days</span>
-          <strong class="text-sm font-black text-uno-charcoal">${rows.length} Days</strong>
-        </div>
-      `;
-    }
-  } catch (err) {
-    console.error("Reports error:", err);
-  } finally {
-    showLoading(false);
-  }
+  // Key Insights
+  const insightsContainer = document.getElementById('report-insights');
+  insightsContainer.innerHTML = `
+    <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+      <span class="text-[10px] text-neutral-400 font-bold block">TOTAL REVENUE</span>
+      <strong class="text-base font-black text-uno-red">${formatCurrency(total)}</strong>
+    </div>
+    <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+      <span class="text-[10px] text-neutral-400 font-bold block">RECORDED DAYS</span>
+      <strong class="text-base font-black text-uno-charcoal">${filtered.length} Days</strong>
+    </div>
+    <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+      <span class="text-[10px] text-neutral-400 font-bold block">AVG DAILY REVENUE</span>
+      <strong class="text-base font-black text-uno-charcoal">${formatCurrency(filtered.length > 0 ? total / filtered.length : 0)}</strong>
+    </div>
+    <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+      <span class="text-[10px] text-neutral-400 font-bold block">DELIVERY SHARE</span>
+      <strong class="text-base font-black text-emerald-600">${total > 0 ? ((delivery / total) * 100).toFixed(1) : 0}%</strong>
+    </div>
+  `;
 }
 
-$("btn-report-refresh")?.addEventListener("click", () => loadReports());
+// ==========================================
+// Helper Utilities
+// ==========================================
+function formatCurrency(num) {
+  return '฿' + Number(num || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showToast(message) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'bg-uno-charcoal text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl flex items-center justify-between transition-all duration-300 pointer-events-auto';
+  toast.innerHTML = `
+    <span>${message}</span>
+    <button class="ml-3 text-neutral-400 hover:text-white" onclick="this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
