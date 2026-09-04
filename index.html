@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sales Performance Portal - UNO! COFFEE COMPANY</title>
+    <meta name="description" content="Sales Performance Portal for UNO! COFFEE COMPANY tracking daily sales, targets, payments breakdown, and performance analytics.">
+    <meta property="og:title" content="Sales Performance Portal - UNO! COFFEE COMPANY">
+    <meta property="og:description" content="Sales Performance Portal for UNO! COFFEE COMPANY tracking daily sales, targets, payments breakdown, and performance analytics.">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -74,22 +77,134 @@ button{cursor:pointer}
 /* Hide scrollbars for clean mobile UI */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.preset-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #4b5563;
+  transition: all .15s ease;
+  white-space: nowrap;
+}
+.preset-btn:hover {
+  background: #f8fafc;
+  color: #111111;
+  border-color: #cbd5e1;
+}
+.preset-btn.active {
+  background: #111111;
+  color: #ffffff;
+  border-color: #111111;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+}
+.pulse-dot {
+  animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.toast {
+  pointer-events: auto;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(120%);
+  opacity: 0;
+}
+.toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+@media print {
+  header, #btn-dash-refresh, #btn-open-sale, .no-print, nav {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .portal-card {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    break-inside: avoid;
+  }
+}
 </style>
 </head>
 <body class="bg-slate-50 text-neutral-800 min-h-screen antialiased">
+
+    <!-- Firebase Auth Login / Register Modal -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-neutral-950/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-md overflow-hidden animate-fadeIn">
+            <!-- Header Banner -->
+            <div class="bg-uno-charcoal p-6 text-white text-center relative border-b border-neutral-800">
+                <div class="w-12 h-12 rounded-2xl bg-uno-red text-white flex items-center justify-center font-black text-xl mx-auto mb-3 shadow-md">U</div>
+                <h2 class="text-base font-black tracking-tight">UNO! COFFEE COMPANY</h2>
+                <div class="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-full text-[10px] text-neutral-300 font-medium">
+                    <svg class="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"></path></svg>
+                    <span>ระบบรักษาความปลอดภัยระดับองค์กร (Firebase Auth)</span>
+                </div>
+            </div>
+
+            <!-- Form Body -->
+            <div class="p-6">
+                <div class="mb-4">
+                    <h3 id="auth-form-title" class="text-sm font-bold text-uno-charcoal">เข้าสู่ระบบเพื่อจัดการยอดขาย</h3>
+                    <p id="auth-form-desc" class="text-xs text-neutral-500 mt-0.5">ระบุอีเมลและรหัสผ่านเพื่อเข้าใช้งานระบบ POS Portal</p>
+                </div>
+
+                <form id="form-auth" class="space-y-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-neutral-700 mb-1" for="auth-email">อีเมล (Email)</label>
+                        <input id="auth-email" type="email" required autocomplete="email" value="" class="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 focus:outline-none focus:ring-2 focus:ring-uno-red/20 focus:border-uno-red font-medium transition" placeholder="name@unocoffee.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-neutral-700 mb-1" for="auth-password">รหัสผ่าน (Password)</label>
+                        <input id="auth-password" type="password" required autocomplete="current-password" value="" class="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 focus:outline-none focus:ring-2 focus:ring-uno-red/20 focus:border-uno-red font-medium transition" placeholder="••••••••">
+                    </div>
+
+                    <div id="auth-error-msg" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-uno-red font-medium leading-relaxed"></div>
+
+                    <div class="pt-1 flex flex-col gap-2">
+                        <button type="submit" id="btn-auth-submit" class="w-full py-2.5 px-4 bg-uno-red hover:bg-red-700 active:bg-red-800 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-2">
+                            <span id="btn-auth-text">เข้าสู่ระบบ (Sign In)</span>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-4 pt-4 border-t border-neutral-100 flex items-center justify-between text-xs">
+                    <span id="auth-toggle-label" class="text-neutral-500">ยังไม่มีบัญชีในระบบ?</span>
+                    <button type="button" id="btn-auth-toggle-mode" class="text-uno-red font-bold hover:underline">สร้างบัญชีผู้ใช้ใหม่ (Register)</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Main App Portal -->
     <div id="app-section" class="min-h-screen flex flex-col pb-12 sm:pb-0">
         
         <!-- Header Nav -->
-        <header class="bg-uno-charcoal text-white sticky top-0 z-40 shadow-md">
+        <header class="bg-uno-charcoal text-white sticky top-0 z-40 shadow-md border-b border-neutral-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-[68px] flex items-center justify-between">
-                <div class="flex items-center gap-6">
+                <div class="flex items-center gap-4 sm:gap-6">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-uno-red text-white flex items-center justify-center font-black text-sm sm:text-base shadow-sm">U</div>
                         <div>
-                            <span class="font-black text-white text-xs sm:text-sm block leading-none tracking-wider">UNO! COFFEE</span>
-                            <span class="text-[9px] sm:text-[10px] text-neutral-400 font-medium">Sales Portal</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-black text-white text-xs sm:text-sm leading-none tracking-wider">UNO! COFFEE</span>
+                                <span class="pill bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-extrabold flex items-center gap-1 py-0.5 px-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span> LIVE
+                                </span>
+                            </div>
+                            <span class="text-[9px] sm:text-[10px] text-neutral-400 font-medium">Sales Portal & POS Analytics</span>
                         </div>
                     </div>
                     <!-- Navigation Tabs (Desktop) -->
@@ -97,17 +212,33 @@ button{cursor:pointer}
                         <button class="nav-btn active px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-uno-red" data-page="page-dashboard">Dashboard</button>
                         <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-daily">Daily Sales</button>
                         <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-history">History</button>
-                        <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-reports">Reports</button>
+                        <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-reports">Store Report</button>
                         <button class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white" data-page="page-settings">Admin Console</button>
                     </nav>
                 </div>
 
-                <!-- Branch Tag (มุมบนขวา) -->
-                <div class="flex items-center">
-                    <div class="bg-neutral-800/80 border border-neutral-700/80 rounded-lg px-2.5 py-1 text-right">
+                <!-- Live Clock & Branch Tag & User Profile (มุมบนขวา) -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div id="header-clock" class="hidden sm:block text-right text-[11px] font-mono text-neutral-300 bg-neutral-900/90 border border-neutral-800 px-3 py-1 rounded-lg">
+                        --:--:--
+                    </div>
+                    <div class="bg-neutral-800/90 border border-neutral-700/80 rounded-lg px-2.5 py-1 text-right">
                         <span class="text-[9px] text-neutral-400 block leading-none font-medium">BRANCH</span>
                         <span class="text-xs font-bold text-white tracking-wider">UN1021-CNV</span>
                     </div>
+                    <div id="header-user-badge" class="flex items-center gap-2 bg-neutral-800/90 border border-neutral-700/80 rounded-lg px-2.5 py-1 text-right">
+                        <div class="w-5 h-5 rounded-full bg-uno-red text-white flex items-center justify-center text-[10px] font-black" id="header-user-initial">U</div>
+                        <div class="hidden sm:block text-left">
+                            <span class="text-[8px] text-emerald-400 block leading-none font-bold uppercase">AUTHENTICATED</span>
+                            <span id="header-user-email" class="text-[11px] font-bold text-neutral-200 tracking-tight truncate max-w-[120px] block">khnutchanun@gmail.com</span>
+                        </div>
+                        <button id="btn-header-signout" class="text-[10px] text-neutral-400 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-1.5 py-0.5 rounded font-bold transition ml-0.5" title="ออกจากระบบ">
+                            ออก
+                        </button>
+                    </div>
+                    <button id="btn-header-signin" class="hidden px-3 py-1 text-xs font-bold text-white bg-uno-red hover:bg-red-700 rounded-lg transition shadow-sm" title="เข้าสู่ระบบ">
+                        เข้าสู่ระบบ
+                    </button>
                 </div>
             </div>
 
@@ -116,7 +247,7 @@ button{cursor:pointer}
                 <button class="nav-btn active text-xs font-bold px-3.5 py-2 whitespace-nowrap text-white bg-uno-red rounded-lg" data-page="page-dashboard">Dashboard</button>
                 <button class="nav-btn text-xs font-semibold px-3.5 py-2 whitespace-nowrap text-neutral-300 bg-neutral-900 rounded-lg" data-page="page-daily">Daily Sales</button>
                 <button class="nav-btn text-xs font-semibold px-3.5 py-2 whitespace-nowrap text-neutral-300 bg-neutral-900 rounded-lg" data-page="page-history">History</button>
-                <button class="nav-btn text-xs font-semibold px-3.5 py-2 whitespace-nowrap text-neutral-300 bg-neutral-900 rounded-lg" data-page="page-reports">Reports</button>
+                <button class="nav-btn text-xs font-semibold px-3.5 py-2 whitespace-nowrap text-neutral-300 bg-neutral-900 rounded-lg" data-page="page-reports">Store Report</button>
                 <button class="nav-btn text-xs font-semibold px-3.5 py-2 whitespace-nowrap text-neutral-300 bg-neutral-900 rounded-lg" data-page="page-settings">Admin Console</button>
             </div>
         </header>
@@ -125,31 +256,44 @@ button{cursor:pointer}
         <main class="max-w-7xl mx-auto w-full px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 flex-1">
             <div class="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-uno-red">UNO! COFFEE COMPANY</p>
+                    <div class="flex items-center gap-2">
+                        <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-uno-red">UNO! COFFEE COMPANY</p>
+                        <span class="pill bg-neutral-200 text-neutral-700 text-[9px] font-bold">POS v2.2 Production</span>
+                    </div>
                     <h1 class="text-lg sm:text-2xl font-black tracking-tight text-uno-charcoal mt-0.5">Sales Performance Overview</h1>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="btn-dash-refresh" class="flex-1 sm:flex-none px-3.5 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition active:bg-neutral-100">Refresh</button>
-                    <button id="btn-open-sale" class="flex-1 sm:flex-none px-4 py-2 bg-uno-red text-white rounded-xl text-xs font-bold shadow-xs hover:bg-red-700 transition active:bg-red-800">+ บันทึกยอดขาย</button>
+                    <button id="btn-dash-refresh" class="flex-1 sm:flex-none px-3.5 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition active:bg-neutral-100 flex items-center justify-center gap-1.5 shadow-2xs">
+                        <svg class="w-3.5 h-3.5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        <span>Refresh</span>
+                    </button>
+                    <button id="btn-open-sale" class="flex-1 sm:flex-none px-4 py-2 bg-uno-red text-white rounded-xl text-xs font-bold shadow-xs hover:bg-red-700 transition active:bg-red-800 flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        <span>+ บันทึกยอดขาย</span>
+                    </button>
                 </div>
             </div>
             
             <!-- 1. DASHBOARD PAGE -->
             <section id="page-dashboard" class="page space-y-4 sm:space-y-6">
+                <!-- Dashboard Error State Banner -->
+                <div id="dash-error-banner" class="hidden"></div>
+
+                <!-- Top 4 Metrics Cards -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div class="portal-card p-4 sm:p-5 border-l-4 border-l-uno-red">
                         <span class="text-[10px] sm:text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">Today's Sales (<span id="dash-period">-</span>)</span>
-                        <div id="dash-today-sales" class="text-xl sm:text-[26px] leading-tight font-black text-uno-charcoal">฿0.00</div>
-                        <span id="dash-today-target" class="text-[10px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
+                        <div id="dash-today-sales" class="text-xl sm:text-[26px] leading-tight font-black text-uno-charcoal">฿0.0</div>
+                        <span id="dash-today-target" class="text-[10px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0.0% Target</span>
                     </div>
                     <div class="portal-card p-4 sm:p-5">
                         <span class="text-[10px] sm:text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">MTD Sales</span>
-                        <div id="dash-mtd-sales" class="text-xl sm:text-[26px] leading-tight font-black text-uno-red">฿0.00</div>
-                        <span id="dash-mtd-target" class="text-[10px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0% Target</span>
+                        <div id="dash-mtd-sales" class="text-xl sm:text-[26px] leading-tight font-black text-uno-red">฿0.0</div>
+                        <span id="dash-mtd-target" class="text-[10px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">0.0% Target</span>
                     </div>
                     <div class="portal-card p-4 sm:p-5">
                         <span class="text-[10px] sm:text-xs font-bold text-neutral-400 block mb-1 uppercase tracking-wider">Avg / Day</span>
-                        <div id="dash-avg-day" class="text-xl sm:text-[26px] leading-tight font-black text-uno-charcoal">฿0.00</div>
+                        <div id="dash-avg-day" class="text-xl sm:text-[26px] leading-tight font-black text-uno-charcoal">฿0.0</div>
                         <span id="dash-record-days" class="text-[10px] sm:text-xs text-neutral-400 mt-2 block">0 recorded days</span>
                     </div>
                     <div class="portal-card p-4 sm:p-5">
@@ -159,17 +303,42 @@ button{cursor:pointer}
                     </div>
                 </div>
 
+                <!-- Pace & Forecasting Production Banner -->
+                <div class="portal-card p-4 sm:p-5 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white border-none shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="pill bg-uno-red text-white text-[10px] font-extrabold uppercase">Monthly Target Pace Tracker</span>
+                            <span id="dash-remaining-days" class="text-xs text-neutral-300 font-medium">เหลืออีก - วัน</span>
+                        </div>
+                        <div class="flex flex-wrap items-baseline gap-2">
+                            <span class="text-xs text-neutral-400">Run-Rate ที่ต้องทำต่อวันในวันที่เหลือ:</span>
+                            <strong id="dash-pace-needed" class="text-base sm:text-lg font-black text-emerald-400">฿0.0 / วัน</strong>
+                        </div>
+                        <p class="text-[11px] text-neutral-400">เพื่อให้บรรลุเป้าหมายประจำเดือนยอด <strong id="dash-banner-target" class="text-neutral-200">฿0.0</strong></p>
+                    </div>
+                    <div class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-neutral-700/80 pt-3 md:pt-0 md:pl-5">
+                        <div>
+                            <span class="text-[10px] text-neutral-400 uppercase block">ยอดคาดการณ์สิ้นเดือน (Forecast)</span>
+                            <div id="dash-projection-banner" class="text-lg sm:text-xl font-black text-white">฿0.0</div>
+                            <span id="dash-projection-diff" class="text-[11px] font-semibold text-emerald-400 block">+฿0.0 (+0.0%)</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
                     <div class="lg:col-span-8 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Sales Trend</h3>
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm uppercase tracking-wider">Sales Trend vs. Daily Target</h3>
+                            <span class="text-[11px] text-neutral-400 font-medium">กราฟแสดงยอดขายจริงเทียบเป้าหมาย</span>
+                        </div>
                         <div class="h-48 sm:h-64"><canvas id="chart-sales-trend"></canvas></div>
                     </div>
                     <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
                         <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Monthly Target Achievement</h3>
                         <div class="h-40 sm:h-48 relative flex items-center justify-center"><canvas id="chart-target"></canvas></div>
                         <div class="mt-4 pt-3 border-t border-neutral-100 flex justify-between text-xs font-bold">
-                            <span>Actual: <strong id="dash-target-actual" class="text-uno-red">฿0.00</strong></span>
-                            <span>Target: <strong id="dash-target-value">฿0.00</strong></span>
+                            <span>Actual: <strong id="dash-target-actual" class="text-uno-red">฿0.0</strong></span>
+                            <span>Target: <strong id="dash-target-value">฿0.0</strong></span>
                         </div>
                     </div>
                 </div>
@@ -180,13 +349,41 @@ button{cursor:pointer}
                         <div class="h-40 sm:h-48 mb-4"><canvas id="chart-payment-mix"></canvas></div>
                         <div id="dash-payment-summary" class="space-y-1.5 border-t border-neutral-100 pt-3"></div>
                     </div>
-                    <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm mb-2 uppercase tracking-wider">Performance Alerts</h3>
-                        <div class="text-xs text-neutral-500 mb-4">Projection: <span id="dash-projection" class="font-bold text-uno-charcoal">฿0.00</span> <span id="dash-projection-status" class="pill bg-neutral-100">Status</span></div>
-                        <div id="dash-alerts" class="space-y-2"></div>
+                    <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm uppercase tracking-wider">Delivery & Commission GP Estimator</h3>
+                                <span class="pill bg-amber-50 text-amber-800 text-[10px] font-bold">Grab & LINE MAN</span>
+                            </div>
+                            <p class="text-[11px] text-neutral-400 mb-3">ประมาณการค่า GP (30%) และรายรับสุทธิของช่องทางเดลิเวอรี</p>
+                            
+                            <div class="space-y-2.5 bg-neutral-50 p-3 rounded-xl border border-neutral-100 text-xs">
+                                <div class="flex justify-between">
+                                    <span class="text-neutral-500">Gross Delivery Sales:</span>
+                                    <strong id="dash-deliv-gross" class="text-uno-charcoal">฿0.0</strong>
+                                </div>
+                                <div class="flex justify-between text-uno-red">
+                                    <span>Est. GP Deduction (30%):</span>
+                                    <strong id="dash-deliv-gp">-฿0.0</strong>
+                                </div>
+                                <div class="flex justify-between border-t border-neutral-200 pt-2 font-bold">
+                                    <span class="text-emerald-800">Net Delivery Intake:</span>
+                                    <strong id="dash-deliv-net" class="text-emerald-700">฿0.0</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-neutral-100">
+                            <h4 class="font-extrabold text-uno-charcoal text-xs uppercase tracking-wider mb-2">Performance Alerts</h4>
+                            <div class="text-xs text-neutral-500 mb-2">Projection: <span id="dash-projection" class="font-bold text-uno-charcoal">฿0.0</span> <span id="dash-projection-status" class="pill bg-neutral-100">Status</span></div>
+                            <div id="dash-alerts" class="space-y-2 max-h-36 overflow-y-auto"></div>
+                        </div>
                     </div>
                     <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Recent Records</h3>
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 class="font-extrabold text-uno-charcoal text-xs sm:text-sm uppercase tracking-wider">Recent Records</h3>
+                            <span class="text-[10px] text-neutral-400 font-medium">ล่าสุด 5 รายการ</span>
+                        </div>
                         <div class="overflow-x-auto -mx-2 px-2">
                             <table class="w-full text-left text-xs min-w-[280px]">
                                 <thead>
@@ -206,6 +403,9 @@ button{cursor:pointer}
 
             <!-- 2. DAILY SALES PAGE -->
             <section id="page-daily" class="page hidden space-y-4">
+                <!-- Daily Error State Banner -->
+                <div id="daily-error-banner" class="hidden"></div>
+
                 <div class="portal-card p-4 bg-uno-charcoal text-white flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div>
@@ -218,22 +418,39 @@ button{cursor:pointer}
                     <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-end sm:items-center gap-2 sm:gap-3">
                         <div>
                             <label class="block text-[10px] text-neutral-400 mb-1">Monthly Target (THB)</label>
-                            <input type="number" id="daily-monthly-target-input" placeholder="0.00" class="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl text-xs font-bold text-white sm:w-36 outline-none focus:border-uno-red">
+                            <input type="number" min="0" step="0.1" id="daily-monthly-target-input" placeholder="0.0" class="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl text-xs font-bold text-white sm:w-36 outline-none focus:border-uno-red">
                         </div>
                         <div>
                             <label class="block text-[10px] text-neutral-400 mb-1">Daily Target (เฉลี่ย/วัน)</label>
-                            <input type="text" id="daily-calc-target" value="฿0.00" disabled class="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs font-bold text-uno-red sm:w-32 cursor-not-allowed">
+                            <input type="text" id="daily-calc-target" value="฿0.0" disabled class="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs font-bold text-uno-red sm:w-32 cursor-not-allowed">
                         </div>
                         <button id="btn-save-monthly-target" class="col-span-2 sm:col-span-1 py-2.5 sm:py-2 px-4 bg-uno-red hover:bg-red-700 text-white font-bold text-xs rounded-xl transition active:bg-red-800">ตั้งค่า Target</button>
                     </div>
                 </div>
 
-                <div class="portal-card p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" id="daily-search" placeholder="ค้นหาตามวันที่..." class="field text-xs w-full sm:w-64">
-                        <input type="month" id="daily-month" class="field text-xs w-full sm:w-40">
+                <!-- Daily Controls, Date Jumper, and Status Filter Chips -->
+                <div class="portal-card p-3.5 sm:p-4 space-y-3">
+                    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="text" id="daily-search" placeholder="ค้นหาตามวันที่..." class="field text-xs w-full sm:w-56">
+                            <input type="month" id="daily-month" class="field text-xs w-full sm:w-36">
+                            <div class="flex items-center gap-1">
+                                <button type="button" id="btn-daily-today" class="px-2.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-xl transition">วันนี้</button>
+                                <button type="button" id="btn-daily-yesterday" class="px-2.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-xl transition">เมื่อวาน</button>
+                            </div>
+                        </div>
+                        <span id="daily-count" class="text-xs font-bold text-neutral-500 text-right sm:text-left">0 records</span>
                     </div>
-                    <span id="daily-count" class="text-xs font-bold text-neutral-500 text-right sm:text-left">0 records</span>
+
+                    <!-- Quick Filter Chips -->
+                    <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-neutral-100 text-xs">
+                        <span class="text-neutral-400 text-[11px] font-semibold mr-1">ตัวกรอง:</span>
+                        <button type="button" class="daily-filter-btn active px-3 py-1 bg-uno-charcoal text-white rounded-lg font-bold text-[11px] transition" data-filter="all">ทั้งหมด (All)</button>
+                        <button type="button" class="daily-filter-btn px-3 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg font-bold text-[11px] transition" data-filter="above">ทะลุเป้า (Above Target)</button>
+                        <button type="button" class="daily-filter-btn px-3 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg font-bold text-[11px] transition" data-filter="near">ใกล้ถึงเป้า (Near Target)</button>
+                        <button type="button" class="daily-filter-btn px-3 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg font-bold text-[11px] transition" data-filter="below">ต่ำกว่าเป้า (Below Target)</button>
+                        <button type="button" class="daily-filter-btn px-3 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg font-bold text-[11px] transition" data-filter="voids">มีบิลยกเลิก (Has Voids)</button>
+                    </div>
                 </div>
 
                 <div class="portal-card overflow-hidden">
@@ -254,6 +471,7 @@ button{cursor:pointer}
                                     <th class="p-3 text-right">Line Man</th>
                                     <th class="p-3 text-right">Grab</th>
                                     <th class="p-3 text-center">Void</th>
+                                    <th class="p-3 text-left">Updated By</th>
                                     <th class="p-3 text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -272,6 +490,9 @@ button{cursor:pointer}
 
             <!-- 3. HISTORY PAGE -->
             <section id="page-history" class="page hidden space-y-4">
+                <!-- History Error State Banner -->
+                <div id="history-error-banner" class="hidden"></div>
+
                 <div class="portal-card overflow-hidden">
                     <div class="p-4 border-b border-neutral-100 flex justify-between items-center">
                         <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm">ประวัติบันทึกยอดขาย (Sales Records)</h3>
@@ -283,6 +504,7 @@ button{cursor:pointer}
                                     <th class="p-3.5">Date</th>
                                     <th class="p-3.5 text-right">Total Sales</th>
                                     <th class="p-3.5 text-center">Void Bills</th>
+                                    <th class="p-3.5 text-left">Updated By</th>
                                     <th class="p-3.5 text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -292,45 +514,213 @@ button{cursor:pointer}
                 </div>
             </section>
 
-            <!-- 4. REPORTS PAGE -->
+            <!-- 4. STORE REPORT PAGE (ALL DETAILS) -->
             <section id="page-reports" class="page hidden space-y-4 sm:space-y-6">
-                <div class="portal-card p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-xs font-bold text-neutral-600 w-full sm:w-auto">ช่วงเวลา:</span>
-                        <div class="flex items-center gap-1.5 w-full sm:w-auto">
-                            <input type="date" id="report-from" class="field text-xs flex-1 sm:w-36">
-                            <span class="text-xs text-neutral-400">ถึง</span>
-                            <input type="date" id="report-to" class="field text-xs flex-1 sm:w-36">
+                <!-- Report Error State Banner -->
+                <div id="report-error-banner" class="hidden"></div>
+
+                <!-- Filter & Controls Toolbar -->
+                <div class="portal-card p-4 sm:p-5 space-y-3.5">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-neutral-100 pb-3.5">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-red-50 text-uno-red font-bold text-[10px]">BRANCH UN1021-CNV</span>
+                                <span class="text-[11px] text-neutral-400 font-medium">Central Village Branch</span>
+                            </div>
+                            <h2 class="text-base sm:text-lg font-extrabold text-uno-charcoal tracking-tight">Store Performance Report</h2>
+                            <p class="text-xs text-neutral-500">รายงานสรุปผลประกอบการและยอดขายสาขาฉบับละเอียด (All Details & Daily Ledger)</p>
                         </div>
-                        <button id="btn-report-refresh" class="w-full sm:w-auto px-4 py-2 bg-uno-red text-white rounded-xl text-xs font-bold hover:bg-red-700 transition active:bg-red-800">ดึงข้อมูล</button>
+                        <div class="flex flex-wrap items-center gap-2 no-print">
+                            <button id="btn-report-csv" class="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition active:scale-95 flex items-center gap-1.5 shadow-xs">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span>Export CSV</span>
+                            </button>
+                            <button id="btn-print-report" class="px-3.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold transition active:scale-95 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                <span>Print Report</span>
+                            </button>
+                        </div>
                     </div>
-                    <button id="btn-print-report" class="w-full sm:w-auto px-3.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold transition active:bg-neutral-300">Print Report</button>
+
+                    <!-- Date Presets & Custom Date Range -->
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 no-print">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-xs font-bold text-neutral-500 mr-1">ช่วงเวลาด่วน:</span>
+                            <button type="button" class="preset-btn" data-preset="today">วันนี้ (Today)</button>
+                            <button type="button" class="preset-btn" data-preset="week">สัปดาห์นี้ (This Week)</button>
+                            <button type="button" class="preset-btn active" data-preset="month">เดือนนี้ (This Month)</button>
+                            <button type="button" class="preset-btn" data-preset="last-month">เดือนก่อน (Last Month)</button>
+                            <button type="button" class="preset-btn" data-preset="all">ทั้งหมด (All Records)</button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex items-center gap-1.5 w-full sm:w-auto">
+                                <input type="date" id="report-from" class="field text-xs flex-1 sm:w-36">
+                                <span class="text-xs text-neutral-400">ถึง</span>
+                                <input type="date" id="report-to" class="field text-xs flex-1 sm:w-36">
+                            </div>
+                            <button id="btn-report-refresh" class="w-full sm:w-auto px-4 py-2 bg-uno-red text-white rounded-xl text-xs font-bold hover:bg-red-700 transition active:scale-95 shadow-xs">ดึงข้อมูล</button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-                    <div class="portal-card p-3.5 sm:p-4"><span class="text-[10px] text-neutral-400 block uppercase font-bold">Total Sales</span><strong id="report-total-sales" class="text-sm sm:text-base font-black text-uno-red">฿0.00</strong></div>
-                    <div class="portal-card p-3.5 sm:p-4"><span class="text-[10px] text-neutral-400 block uppercase font-bold">Target</span><strong id="report-target" class="text-sm sm:text-base font-black text-uno-charcoal">฿0.00</strong></div>
-                    <div class="portal-card p-3.5 sm:p-4"><span class="text-[10px] text-neutral-400 block uppercase font-bold">Achievement</span><strong id="report-achievement" class="text-sm sm:text-base font-black text-emerald-600">0%</strong></div>
-                    <div class="portal-card p-3.5 sm:p-4"><span class="text-[10px] text-neutral-400 block uppercase font-bold">Avg / Day</span><strong id="report-avg" class="text-sm sm:text-base font-black text-uno-charcoal">฿0.00</strong></div>
-                    <div class="portal-card p-3.5 sm:p-4"><span class="text-[10px] text-neutral-400 block uppercase font-bold">Best Day</span><strong id="report-best" class="text-xs font-bold text-uno-charcoal truncate block">—</strong></div>
-                    <div class="portal-card p-3.5 sm:p-4"><span class="text-[10px] text-neutral-400 block uppercase font-bold">Total Voids</span><strong id="report-void" class="text-sm sm:text-base font-black text-uno-red">0</strong></div>
+                <!-- Executive Store Status Banner -->
+                <div class="bg-neutral-900 text-white p-4 sm:p-5 rounded-2xl border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-neutral-400">ร้าน:</span>
+                            <strong class="text-sm font-bold text-white tracking-wide">UNO! COFFEE COMPANY — Branch UN1021-CNV</strong>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-neutral-300">
+                            <span>ช่วงรายงาน:</span>
+                            <strong id="report-period-label" class="text-white font-semibold">-</strong>
+                            <span class="text-neutral-500">|</span>
+                            <span>บันทึกแล้ว:</span>
+                            <strong id="report-recorded-days" class="text-white font-semibold">0 วันทำการ</strong>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right sm:text-right">
+                            <span class="text-[10px] text-neutral-400 block uppercase">สถานะภาพรวม</span>
+                            <span id="report-store-status" class="pill bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-extrabold">On Target</span>
+                        </div>
+                        <div class="text-right border-l border-neutral-800 pl-3 hidden sm:block">
+                            <span class="text-[9px] text-neutral-500 block">อัปเดตล่าสุด</span>
+                            <span id="report-generated-at" class="text-[11px] text-neutral-300 font-medium">-</span>
+                        </div>
+                    </div>
                 </div>
 
+                <!-- 8 Core Performance Scorecards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-3.5">
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Total Sales</span>
+                        <strong id="report-total-sales" class="text-xs sm:text-sm font-black text-uno-red truncate block mt-0.5">฿0.0</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Target</span>
+                        <strong id="report-target" class="text-xs sm:text-sm font-black text-uno-charcoal truncate block mt-0.5">฿0.0</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Achievement</span>
+                        <strong id="report-achievement" class="text-xs sm:text-sm font-black text-emerald-600 truncate block mt-0.5">0.0%</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Avg / Day</span>
+                        <strong id="report-avg" class="text-xs sm:text-sm font-black text-uno-charcoal truncate block mt-0.5">฿0.0</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Best Day</span>
+                        <strong id="report-best" class="text-[11px] font-bold text-uno-charcoal truncate block mt-0.5">—</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Lowest Day</span>
+                        <strong id="report-lowest" class="text-[11px] font-bold text-neutral-500 truncate block mt-0.5">—</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Total Voids</span>
+                        <strong id="report-void" class="text-xs sm:text-sm font-black text-uno-red truncate block mt-0.5">0</strong>
+                    </div>
+                    <div class="portal-card p-3 sm:p-3.5">
+                        <span class="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Target Hit Rate</span>
+                        <strong id="report-hit-rate" class="text-xs sm:text-sm font-black text-uno-charcoal truncate block mt-0.5">0.0%</strong>
+                    </div>
+                </div>
+
+                <!-- Channel Category Split (In-Store vs Delivery vs Cashless) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+                    <!-- Counter / In-Store -->
+                    <div class="portal-card p-4 sm:p-5 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-uno-charcoal uppercase tracking-wider">หน้าร้าน (Counter / In-Store)</span>
+                            <span class="pill bg-neutral-100 text-neutral-700 text-[10px]">8 ช่องทาง</span>
+                        </div>
+                        <div class="my-2">
+                            <strong id="report-instore-sales" class="text-lg sm:text-xl font-black text-uno-charcoal block">฿0.0</strong>
+                            <span id="report-instore-share" class="text-xs text-neutral-500">0.0% ของยอดขายรวม</span>
+                        </div>
+                        <div class="text-[10px] text-neutral-400 pt-2 border-t border-neutral-100 leading-tight">
+                            เงินสด, บัตรเครดิต, QR, พร้อมเพย์, TrueMoney, โอนเงิน, Line Pay, Alipay
+                        </div>
+                    </div>
+
+                    <!-- Delivery Platforms & GP -->
+                    <div class="portal-card p-4 sm:p-5 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-uno-red uppercase tracking-wider">เดลิเวอรี (Delivery Apps)</span>
+                            <span class="pill bg-red-50 text-uno-red text-[10px]">Grab & Line Man</span>
+                        </div>
+                        <div class="my-2">
+                            <strong id="report-delivery-sales" class="text-lg sm:text-xl font-black text-uno-red block">฿0.0</strong>
+                            <span id="report-delivery-share" class="text-xs text-neutral-500">0.0% ของยอดขายรวม</span>
+                        </div>
+                        <div class="text-[11px] text-neutral-600 pt-2 border-t border-neutral-100 flex justify-between">
+                            <span>Grab: <strong id="report-grab-val" class="text-neutral-800">฿0.0</strong></span>
+                            <span>Line Man: <strong id="report-lineman-val" class="text-neutral-800">฿0.0</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Cashless vs Cash -->
+                    <div class="portal-card p-4 sm:p-5 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">ระบบดิจิทัล (Cashless Adoption)</span>
+                            <span class="pill bg-emerald-50 text-emerald-700 text-[10px]">Digital Share</span>
+                        </div>
+                        <div class="my-2">
+                            <strong id="report-cashless-share" class="text-lg sm:text-xl font-black text-emerald-600 block">0.0%</strong>
+                            <span class="text-xs text-neutral-500">สัดส่วนยอดชำระแบบไร้เงินสด</span>
+                        </div>
+                        <div class="text-[11px] text-neutral-600 pt-2 border-t border-neutral-100 flex justify-between">
+                            <span>ดิจิทัล: <strong id="report-cashless-sales" class="text-neutral-800">฿0.0</strong></span>
+                            <span>เงินสด: <strong id="report-cash-sales" class="text-neutral-800">฿0.0</strong> (<span id="report-cash-share">0.0%</span>)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts & Payment Mix -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
                     <div class="lg:col-span-8 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Sales Performance Trend</h3>
-                        <div class="h-48 sm:h-64"><canvas id="chart-report-trend"></canvas></div>
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm uppercase tracking-wider">Sales Performance Trend (ยอดขายเทียบเป้าหมายรายวัน)</h3>
+                            <span class="text-[10px] text-neutral-400 font-medium">Daily Actual vs. Target</span>
+                        </div>
+                        <div class="h-52 sm:h-64"><canvas id="chart-report-trend"></canvas></div>
                     </div>
                     <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Payment Breakdown</h3>
+                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 uppercase tracking-wider">Payment Share (สัดส่วนช่องทางชำระ)</h3>
                         <div class="h-36 sm:h-40 mb-3"><canvas id="chart-report-pie"></canvas></div>
-                        <div id="report-payment-list" class="space-y-1.5 border-t border-neutral-100 pt-2"></div>
+                        <div id="report-payment-list" class="space-y-1.5 border-t border-neutral-100 pt-2 max-h-44 overflow-y-auto"></div>
                     </div>
                 </div>
 
+                <!-- Detailed Payment Breakdown Ranking Table -->
+                <div class="portal-card overflow-hidden">
+                    <div class="p-4 border-b border-neutral-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm uppercase tracking-wider">Payment Channels Full Breakdown (รายละเอียดทุกช่องทางการรับเงิน)</h3>
+                            <p class="text-[11px] text-neutral-400">อันดับช่องทางชำระเงิน ยอดรวม สัดส่วน % และยอดเฉลี่ยต่อวันทำการ</p>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs min-w-[500px]">
+                            <thead class="bg-neutral-100 font-bold text-uno-charcoal uppercase border-b border-neutral-200">
+                                <tr>
+                                    <th class="p-3 w-12 text-center">Rank</th>
+                                    <th class="p-3">Payment Method</th>
+                                    <th class="p-3">Category</th>
+                                    <th class="p-3 text-right">Total Revenue</th>
+                                    <th class="p-3 text-right">% Share</th>
+                                    <th class="p-3 text-right">Avg / Day</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-channels-table-body" class="divide-y divide-neutral-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Top Ranking & Performance Insights -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
                     <div class="lg:col-span-7 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Daily Sales Ranking</h3>
+                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Daily Sales Ranking (อันดับวันที่ยอดขายสูงสุด)</h3>
                         <div class="overflow-x-auto -mx-2 px-2">
                             <table class="w-full text-left text-xs min-w-[320px]">
                                 <thead>
@@ -347,8 +737,58 @@ button{cursor:pointer}
                         </div>
                     </div>
                     <div class="lg:col-span-5 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs">
-                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Performance Insights</h3>
+                        <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm mb-3 sm:mb-4 uppercase tracking-wider">Performance Insights & Audit</h3>
                         <div id="report-insights" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- THE COMPLETE STORE DAILY SALES LEDGER (ALL DETAILS TABLE) -->
+                <div class="portal-card overflow-hidden">
+                    <div class="p-4 border-b border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-uno-charcoal text-xs sm:text-sm uppercase tracking-wider">Store Daily Sales Ledger — All Details</h3>
+                                <span class="pill bg-neutral-900 text-white text-[10px]">บันทึกรายวันครบทุกมิติ</span>
+                            </div>
+                            <p class="text-[11px] text-neutral-400 mt-0.5">ตารางแจกแจงยอดขายทุกช่องทางชำระ, บิลยกเลิก, การเปรียบเทียบเป้าหมาย และเจ้าหน้าที่ผู้บันทึก</p>
+                        </div>
+                        <div class="flex items-center gap-2 no-print">
+                            <input type="text" id="report-ledger-search" placeholder="ค้นหาวันที่, ผู้บันทึก..." class="field text-xs w-44 sm:w-56 py-1.5 px-3">
+                            <select id="report-ledger-sort" class="field text-xs w-36 sm:w-44 py-1.5 px-3">
+                                <option value="date-desc">วันที่: ล่าสุด → เก่าสุด</option>
+                                <option value="date-asc">วันที่: เก่าสุด → ล่าสุด</option>
+                                <option value="sales-desc">ยอดขาย: มาก → น้อย</option>
+                                <option value="sales-asc">ยอดขาย: น้อย → มาก</option>
+                            </select>
+                            <span id="report-ledger-count" class="text-xs text-neutral-500 font-bold whitespace-nowrap">0 วัน</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-neutral-600 whitespace-nowrap">
+                            <thead class="bg-neutral-100 font-bold text-uno-charcoal uppercase border-b border-neutral-200">
+                                <tr>
+                                    <th class="p-3">Date</th>
+                                    <th class="p-3">Day</th>
+                                    <th class="p-3 text-right">Total Sales</th>
+                                    <th class="p-3 text-right">Cash</th>
+                                    <th class="p-3 text-right">Credit Card</th>
+                                    <th class="p-3 text-right">QR</th>
+                                    <th class="p-3 text-right">PromptPay</th>
+                                    <th class="p-3 text-right">TrueMoney</th>
+                                    <th class="p-3 text-right">Bank Transfer</th>
+                                    <th class="p-3 text-right">Line Pay</th>
+                                    <th class="p-3 text-right">Alipay</th>
+                                    <th class="p-3 text-right">Line Man</th>
+                                    <th class="p-3 text-right">Grab</th>
+                                    <th class="p-3 text-center">Void Bills</th>
+                                    <th class="p-3 text-right">% Target</th>
+                                    <th class="p-3 text-center">Status</th>
+                                    <th class="p-3 text-left">Updated By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-ledger-tbody" class="divide-y divide-neutral-100"></tbody>
+                            <tfoot id="report-ledger-tfoot" class="bg-neutral-50 font-bold text-uno-charcoal border-t-2 border-neutral-300"></tfoot>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -369,25 +809,65 @@ button{cursor:pointer}
                                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Connected (Firestore)
                                 </span>
                             </div>
+                            <div>
+                                <span class="text-neutral-400 block mb-0.5">Security & Access</span>
+                                <span class="inline-flex items-center gap-1.5 font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"></path></svg>
+                                    <span>Rules: request.auth != null</span>
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-neutral-400 block mb-0.5">Active Account</span>
+                                <div class="flex items-center justify-between mt-1">
+                                    <span id="admin-user-email" class="font-bold text-uno-charcoal truncate max-w-[170px]">khnutchanun@gmail.com</span>
+                                    <button id="btn-admin-signout" class="px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-[10px] rounded transition">
+                                        Sign Out
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="lg:col-span-2 bg-white p-5 sm:p-6 rounded-2xl border border-neutral-200 shadow-xs space-y-5 sm:space-y-6">
                         <div class="border-b border-neutral-100 pb-3 flex justify-between items-center">
-                            <h3 class="font-bold text-uno-charcoal text-sm sm:text-base">Admin Console & Operations</h3>
+                            <div>
+                                <h3 class="font-bold text-uno-charcoal text-sm sm:text-base">Admin Console & Operations</h3>
+                                <p class="text-xs text-neutral-400">การจัดการระบบ, ตั้งค่าเป้าหมาย และสำรองฐานข้อมูล</p>
+                            </div>
                             <span class="text-[10px] bg-neutral-100 text-neutral-600 font-bold px-2.5 py-1 rounded-full">System Admin</span>
                         </div>
                         
+                        <!-- Quick Target Presets -->
+                        <div class="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-bold text-xs text-uno-charcoal">Quick Target Presets (ทางลัดกำหนดเป้าหมายประจำเดือน)</h4>
+                                <span class="text-[10px] text-neutral-400">คลิกเพื่อกำหนดเป้าทันที</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" class="btn-target-preset px-3 py-1.5 bg-white border border-neutral-200 hover:border-uno-red text-neutral-700 font-bold text-xs rounded-lg transition" data-target="300000">฿300,000.0</button>
+                                <button type="button" class="btn-target-preset px-3 py-1.5 bg-white border border-neutral-200 hover:border-uno-red text-neutral-700 font-bold text-xs rounded-lg transition" data-target="400000">฿400,000.0</button>
+                                <button type="button" class="btn-target-preset px-3 py-1.5 bg-white border border-neutral-200 hover:border-uno-red text-neutral-700 font-bold text-xs rounded-lg transition" data-target="500000">฿500,000.0</button>
+                                <button type="button" class="btn-target-preset px-3 py-1.5 bg-white border border-neutral-200 hover:border-uno-red text-neutral-700 font-bold text-xs rounded-lg transition" data-target="600000">฿600,000.0</button>
+                                <button type="button" class="btn-target-preset px-3 py-1.5 bg-white border border-neutral-200 hover:border-uno-red text-neutral-700 font-bold text-xs rounded-lg transition" data-target="800000">฿800,000.0</button>
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
-                                <h4 class="font-bold text-xs text-uno-charcoal">Database Operations</h4>
-                                <p class="text-[11px] text-neutral-500">ทำการดึงและรีเฟรช Cache ข้อมูลยอดขายทั้งหมดในระบบ</p>
-                                <button id="btn-admin-clear-cache" class="mt-2 w-full sm:w-auto px-3.5 py-2 bg-uno-red hover:bg-red-700 text-white font-bold text-xs rounded-lg transition active:bg-red-800">Sync System Data</button>
+                                <h4 class="font-bold text-xs text-uno-charcoal">Data Sync & Cache</h4>
+                                <p class="text-[11px] text-neutral-500">ดึงและรีเฟรชข้อมูลยอดขายทั้งหมดจาก Firestore สู่เครื่อง</p>
+                                <button id="btn-admin-clear-cache" class="mt-2 w-full sm:w-auto px-3.5 py-2 bg-uno-red hover:bg-red-700 text-white font-bold text-xs rounded-lg transition active:bg-red-800 flex items-center justify-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    <span>Sync System Data</span>
+                                </button>
                             </div>
                             <div class="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
-                                <h4 class="font-bold text-xs text-uno-charcoal">Security Audit</h4>
-                                <p class="text-[11px] text-neutral-500">ตรวจสอบสถานะการทำงานของระบบ</p>
-                                <div class="text-[11px] font-semibold text-neutral-600 pt-1">Role: <span class="text-uno-red font-bold">System Manager</span></div>
+                                <h4 class="font-bold text-xs text-uno-charcoal">Data Backup & Export (JSON)</h4>
+                                <p class="text-[11px] text-neutral-500">ดาวน์โหลดไฟล์สำรองข้อมูลยอดขายทั้งหมดในรูปแบบ JSON</p>
+                                <button id="btn-admin-backup" class="mt-2 w-full sm:w-auto px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    <span>Download JSON Backup</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -400,39 +880,50 @@ button{cursor:pointer}
     <div id="modal-sale" class="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
         <div class="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b pb-3 sticky top-0 bg-white z-10 pt-1">
-                <h3 id="sale-modal-title" class="font-bold text-uno-charcoal text-base sm:text-lg">บันทึกยอดขายประจำวัน</h3>
-                <button id="btn-close-sale" class="text-neutral-400 hover:text-neutral-600 font-bold p-1">✕</button>
+                <div>
+                    <h3 id="sale-modal-title" class="font-bold text-uno-charcoal text-base sm:text-lg">บันทึกยอดขายประจำวัน</h3>
+                    <span class="text-xs text-neutral-400">ระบบบันทึกยอดขายและช่องทางชำระเงินสาขา</span>
+                </div>
+                <button id="btn-close-sale" class="text-neutral-400 hover:text-neutral-600 font-bold p-1 text-lg">✕</button>
             </div>
             <form id="form-daily-sales" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-neutral-600 mb-1">Business Date</label>
+                    <label class="block text-xs font-semibold text-neutral-600 mb-1">Business Date (วันที่เปิดบิล)</label>
                     <input type="date" id="sale-date" required class="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-semibold">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-neutral-600 mb-1">Total Sales (THB)</label>
-                    <input type="number" step="0.01" id="sale-total" required placeholder="0.00" class="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-lg font-black text-uno-red">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-semibold text-neutral-600">Total Sales (THB)</label>
+                        <button type="button" id="btn-auto-sum" class="text-[11px] text-uno-red hover:text-red-700 font-bold flex items-center gap-1 transition">
+                            <span>⚡ คำนวณยอดรวมจากช่องทางอัตโนมัติ</span>
+                        </button>
+                    </div>
+                    <input type="number" step="0.1" min="0" id="sale-total" required placeholder="0.0" class="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-lg font-black text-uno-red">
                 </div>
                 <div class="border-t border-neutral-100 pt-4">
-                    <label class="block text-xs font-bold text-neutral-700 mb-3">Payment Breakdown (THB)</label>
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-xs font-bold text-neutral-700">Payment Breakdown (THB)</label>
+                        <button type="button" id="btn-clear-breakdown" class="text-[11px] text-neutral-400 hover:text-neutral-600 font-medium">ล้างค่าทั้งหมด (Reset)</button>
+                    </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs">
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Cash</span><input type="number" step="0.01" id="cash" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Credit Card</span><input type="number" step="0.01" id="creditCard" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">QR Payment</span><input type="number" step="0.01" id="qrPayment" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">PromptPay</span><input type="number" step="0.01" id="promptPay" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">TrueMoney</span><input type="number" step="0.01" id="trueMoney" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Bank Transfer</span><input type="number" step="0.01" id="bankTransfer" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Line Pay</span><input type="number" step="0.01" id="linePay" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Alipay</span><input type="number" step="0.01" id="alipay" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Line Man</span><input type="number" step="0.01" id="lineMan" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
-                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Grab</span><input type="number" step="0.01" id="grab" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Cash</span><input type="number" step="0.1" min="0" id="cash" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Credit Card</span><input type="number" step="0.1" min="0" id="creditCard" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">QR Payment</span><input type="number" step="0.1" min="0" id="qrPayment" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">PromptPay</span><input type="number" step="0.1" min="0" id="promptPay" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">TrueMoney</span><input type="number" step="0.1" min="0" id="trueMoney" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Bank Transfer</span><input type="number" step="0.1" min="0" id="bankTransfer" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Line Pay</span><input type="number" step="0.1" min="0" id="linePay" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Alipay</span><input type="number" step="0.1" min="0" id="alipay" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Line Man</span><input type="number" step="0.1" min="0" id="lineMan" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
+                        <div class="flex items-center justify-between p-2.5 bg-neutral-50 rounded-xl border border-neutral-100"><span class="text-neutral-600 font-medium">Grab</span><input type="number" step="0.1" min="0" id="grab" value="0" class="pay-input w-28 bg-white px-2 py-1.5 border border-neutral-200 rounded-lg text-right font-bold"></div>
                     </div>
                 </div>
                 <div class="border-t border-neutral-100 pt-3">
                     <label class="block text-xs font-semibold text-neutral-600 mb-1">Void Bills (จำนวนบิล)</label>
-                    <input type="number" step="1" id="sale-void" value="0" required class="w-full px-3.5 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-bold text-uno-red">
+                    <input type="number" step="1" min="0" id="sale-void" value="0" required class="w-full px-3.5 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-bold text-uno-red">
                 </div>
                 <div id="val-box" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
-                    <span>Sum Breakdown: <strong id="val-sum">฿0.00</strong></span>
+                    <span>Sum Breakdown: <strong id="val-sum">฿0.0</strong></span>
                     <span id="val-status" class="font-bold text-uno-red">Total Sales ไม่ตรงกับ Sum Breakdown</span>
                 </div>
                 <div class="flex gap-2 pt-2">
@@ -466,6 +957,9 @@ button{cursor:pointer}
             </div>
         </div>
     </div>
+
+    <!-- Production Notification Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
     <script type="module" src="./app.js"></script>
 </body>

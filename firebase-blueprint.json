@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "DailySale": {
+      "title": "Daily Sale Record",
+      "description": "Daily sales performance and payment method breakdown for UNO! COFFEE branch UN1021-CNV",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date of sales in YYYY-MM-DD format"
+        },
+        "totalSalesSatang": {
+          "type": "integer",
+          "description": "Total sales in Thai Satang"
+        },
+        "payments": {
+          "type": "object",
+          "description": "Breakdown of sales per payment channel in Thai Satang"
+        },
+        "voidBill": {
+          "type": "integer",
+          "description": "Number of voided bills"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "User email or identifier who created the record"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "User email or identifier who last updated the record"
+        }
+      },
+      "required": ["date", "totalSalesSatang", "payments"]
+    },
+    "MonthlyTarget": {
+      "title": "Monthly Target",
+      "description": "Monthly sales quota and targets",
+      "type": "object",
+      "properties": {
+        "monthKey": {
+          "type": "string",
+          "description": "Target month in YYYY-MM format"
+        },
+        "monthlyTargetSatang": {
+          "type": "integer",
+          "description": "Target amount in Thai Satang"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedBy": {
+          "type": "string"
+        }
+      },
+      "required": ["monthKey", "monthlyTargetSatang"]
+    }
+  },
+  "firestore": {
+    "/sales/{date}": {
+      "schema": "DailySale",
+      "description": "Collection of daily sales records keyed by date"
+    },
+    "/targets/{monthKey}": {
+      "schema": "MonthlyTarget",
+      "description": "Collection of monthly target figures keyed by month"
+    }
+  }
+}

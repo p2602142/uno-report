@@ -1,0 +1,8 @@
+{
+  "name": "Sales Performance Portal - UNO! COFFEE COMPANY",
+  "description": "Sales Performance Portal for UNO! COFFEE COMPANY tracking daily sales, targets, payments breakdown, and performance analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
