@@ -233,7 +233,7 @@ async function getMonthlyTargetSatang(monthKey) {
 ========================================================= */
 
 /**
- * Unified calculation of daily target from monthly target and date/month string
+ * Central Daily Target Calculation: unified formula across all 3 components.
  */
 function calculateDailyTargetFromMonthly(monthlyTargetSatang, monthKeyOrDate) {
   if (!monthlyTargetSatang || !monthKeyOrDate) return 0;
@@ -245,7 +245,7 @@ function calculateDailyTargetFromMonthly(monthlyTargetSatang, monthKeyOrDate) {
 }
 
 /**
- * Unified Daily Target resolver (uses explicit monthly target or fetches from target cache/Firestore)
+ * Unified Daily Target Resolver: fetches from cache/Firestore or calculates directly.
  */
 async function getDailyTargetSatang(monthKeyOrDate, explicitMonthlyTargetSatang = null) {
   if (!monthKeyOrDate) return 0;
@@ -258,10 +258,10 @@ async function getDailyTargetSatang(monthKeyOrDate, explicitMonthlyTargetSatang 
 }
 
 /**
- * Unified 3-tier Achievement Status across all modules (Dashboard, Store Report, Daily Sales)
- * Above Target: >= 100%
- * Near Target:  80% - 99.9%
- * Below Target: < 80%
+ * Central Achievement Status Function: 3-tier system used identically in Dashboard, Store Report, and Daily Sales.
+ * - Above Target: >= 100%
+ * - Near Target:  80% - 99.9%
+ * - Below Target: < 80%
  */
 function getAchievementStatus(salesSatang, targetSatang) {
   const target = Math.max(0, targetSatang || 0);
@@ -274,7 +274,7 @@ function getAchievementStatus(salesSatang, targetSatang) {
       status: "above",
       label: "Above Target",
       shortLabel: "Above",
-      pillClass: "bg-emerald-50 text-emerald-700",
+      pillClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
       textClass: "text-emerald-600"
     };
   }
@@ -284,7 +284,7 @@ function getAchievementStatus(salesSatang, targetSatang) {
       status: "near",
       label: "Near Target",
       shortLabel: "Near",
-      pillClass: "bg-amber-50 text-amber-800",
+      pillClass: "bg-amber-50 text-amber-800 border border-amber-200",
       textClass: "text-amber-600"
     };
   }
@@ -293,13 +293,13 @@ function getAchievementStatus(salesSatang, targetSatang) {
     status: "below",
     label: "Below Target",
     shortLabel: "Below",
-    pillClass: "bg-red-50 text-uno-red",
+    pillClass: "bg-red-50 text-uno-red border border-red-200",
     textClass: "text-uno-red"
   };
 }
 
 /**
- * Unified Payment-Mix summary logic shared between Dashboard and Store Report
+ * Unified Payment-Mix Summary Logic: shared standard calculation across Dashboard & Store Report.
  */
 function calculatePaymentMixSummary(rowsOrTotals, explicitTotalSales = null) {
   const channelTotals = {};
@@ -377,7 +377,7 @@ function calculatePaymentMixSummary(rowsOrTotals, explicitTotalSales = null) {
 }
 
 /**
- * Unified HTML renderer for payment mix summary lists
+ * Central Payment-Mix HTML Renderer.
  */
 function renderPaymentMixHTML(rankedChannels, totalAmount, maxItems = null, isBordered = false) {
   const items = maxItems ? rankedChannels.slice(0, maxItems) : rankedChannels;
@@ -417,7 +417,6 @@ function setActivePage(id) {
     }
   });
 
-  // Only load Firestore data if user is authenticated
   if (!auth.currentUser) {
     return;
   }
@@ -472,7 +471,7 @@ async function getMonthSales() {
 }
 
 /* =========================================================
-   ERROR STATE HANDLERS (USER-FACING)
+   ERROR STATE HANDLERS
 ========================================================= */
 
 function isAuthPermissionError(error) {
@@ -500,7 +499,7 @@ function showDashboardError(error) {
         </div>
         ${isAuthErr ? `
           <button id="btn-login-prompt-dash" class="px-3.5 py-1.5 bg-uno-red hover:bg-red-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 01-3-3h7a3 3 0 013 3v1"></path></svg>
             <span>เข้าสู่ระบบ (Sign In)</span>
           </button>
         ` : `
@@ -560,7 +559,7 @@ function showDailyError(error) {
   }
   const body = $("daily-table-body");
   if (body) {
-    body.innerHTML = `<tr><td colspan="15" class="p-8 text-center text-uno-red font-bold">⚠️ ${isAuthErr ? "กรุณาเข้าสู่ระบบเพื่อดูข้อมูลยอดขาย" : "ไม่สามารถโหลดข้อมูลได้: " + esc(error?.message || "ระบบขัดข้อง")}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="16" class="p-8 text-center text-uno-red font-bold">⚠️ ${isAuthErr ? "กรุณาเข้าสู่ระบบเพื่อดูข้อมูลยอดขาย" : "ไม่สามารถโหลดข้อมูลได้: " + esc(error?.message || "ระบบขัดข้อง")}</td></tr>`;
   }
   showToast(isAuthErr ? "กรุณาเข้าสู่ระบบเพื่อดูยอดขายประจำวัน" : "โหลดยอดขายรายวันล้มเหลว: " + (error?.message || error), "danger");
 }
@@ -580,7 +579,7 @@ function showHistoryError(error) {
         </div>
         ${isAuthErr ? `
           <button id="btn-login-prompt-hist" class="px-3.5 py-1.5 bg-uno-red hover:bg-red-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 01-3-3h7a3 3 0 013 3v1"></path></svg>
             <span>เข้าสู่ระบบ (Sign In)</span>
           </button>
         ` : `
@@ -602,7 +601,7 @@ function showHistoryError(error) {
   }
   const body = $("table-history-body");
   if (body) {
-    body.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-uno-red font-bold">⚠️ ${isAuthErr ? "กรุณาเข้าสู่ระบบเพื่อดูประวัติ" : "ไม่สามารถโหลดข้อมูลได้: " + esc(error?.message || "ระบบขัดข้อง")}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-uno-red font-bold">⚠️ ${isAuthErr ? "กรุณาเข้าสู่ระบบเพื่อดูประวัติ Audit Log" : "ไม่สามารถโหลดข้อมูลได้: " + esc(error?.message || "ระบบขัดข้อง")}</td></tr>`;
   }
   showToast(isAuthErr ? "กรุณาเข้าสู่ระบบเพื่อดูประวัติยอดขาย" : "โหลดประวัติยอดขายล้มเหลว: " + (error?.message || error), "danger");
 }
@@ -680,6 +679,7 @@ async function loadDashboard() {
     const best = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
 
     const voids = rows.reduce((sum, row) => sum + (row.voidBill || 0), 0);
+    const voidAmountSatang = rows.reduce((sum, row) => sum + (row.voidAmountSatang || 0), 0);
     const payMix = calculatePaymentMixSummary(rows, total);
 
     if ($("dash-period")) $("dash-period").textContent = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(now);
@@ -689,6 +689,7 @@ async function loadDashboard() {
     if ($("dash-record-days")) $("dash-record-days").textContent = `${recordDays} recorded days`;
     if ($("dash-projection")) $("dash-projection").textContent = money(projection);
     if ($("dash-void-bills")) $("dash-void-bills").textContent = voids.toLocaleString();
+    if ($("dash-void-amount")) $("dash-void-amount").textContent = money(voidAmountSatang);
 
     if ($("dash-best-day")) {
       $("dash-best-day").textContent = best
@@ -696,18 +697,18 @@ async function loadDashboard() {
         : "Best day —";
     }
 
-    const todayAchievement = dailyTargetSatang ? (todaySales / dailyTargetSatang) * 100 : 0;
-    const monthAchievement = monthlyTargetSatang ? (total / monthlyTargetSatang) * 100 : 0;
+    const todayAchObj = getAchievementStatus(todaySales, dailyTargetSatang);
+    const monthAchObj = getAchievementStatus(total, monthlyTargetSatang);
 
-    if ($("dash-today-target")) $("dash-today-target").textContent = `${todayAchievement.toFixed(1)}% Target`;
-    if ($("dash-mtd-target")) $("dash-mtd-target").textContent = `${monthAchievement.toFixed(1)}% Target`;
+    if ($("dash-today-target")) $("dash-today-target").textContent = `${todayAchObj.rate.toFixed(1)}% Target (${todayAchObj.label})`;
+    if ($("dash-mtd-target")) $("dash-mtd-target").textContent = `${monthAchObj.rate.toFixed(1)}% Target (${monthAchObj.label})`;
     if ($("dash-target-actual")) $("dash-target-actual").textContent = money(total);
     if ($("dash-target-value")) $("dash-target-value").textContent = money(monthlyTargetSatang);
 
     if ($("dash-projection-status")) {
       const onTrack = projection >= monthlyTargetSatang;
       $("dash-projection-status").textContent = onTrack ? "On track" : "Below target";
-      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-uno-red"}`;
+      $("dash-projection-status").className = `pill ${onTrack ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-uno-red border border-red-200"}`;
     }
 
     // Monthly Target Pace Tracker
@@ -718,19 +719,19 @@ async function loadDashboard() {
     if ($("dash-pace-days-left")) $("dash-pace-days-left").textContent = `${daysLeftInMonth} วัน`;
     if ($("dash-pace-needed-day")) $("dash-pace-needed-day").textContent = money(paceNeededPerDaySatang);
     if ($("dash-pace-remaining")) $("dash-pace-remaining").textContent = money(remainingTargetSatang);
-    if ($("dash-pace-pct")) $("dash-pace-pct").textContent = `${monthAchievement.toFixed(1)}%`;
+    if ($("dash-pace-pct")) $("dash-pace-pct").textContent = `${monthAchObj.rate.toFixed(1)}%`;
     if ($("dash-pace-bar")) {
-      $("dash-pace-bar").style.width = `${Math.min(100, Math.max(0, monthAchievement))}%`;
+      $("dash-pace-bar").style.width = `${Math.min(100, Math.max(0, monthAchObj.rate))}%`;
     }
 
-    // Delivery GP Estimator (Grab & LINE MAN at standard 30% GP via unified payment-mix)
+    // Delivery GP Estimator
     if ($("dash-gross-delivery")) $("dash-gross-delivery").textContent = money(payMix.deliveryTotal);
     if ($("dash-net-delivery")) $("dash-net-delivery").textContent = money(payMix.netDeliverySatang);
     if ($("dash-gp-fee")) $("dash-gp-fee").textContent = money(payMix.deliveryGpSatang);
     if ($("dash-gp-pct")) $("dash-gp-pct").textContent = `${payMix.deliveryShare.toFixed(1)}% ของยอดขายรวม`;
 
     renderDashboardCharts(rows, payMix, total, monthlyTargetSatang, dailyTargetSatang);
-    renderDashboardAlerts(rows, todaySales, voids, projection, monthlyTargetSatang, dailyTargetSatang);
+    renderDashboardAlerts(rows, todaySales, voids, voidAmountSatang, projection, monthlyTargetSatang, dailyTargetSatang);
     renderRecent(rows, dailyTargetSatang);
   } catch (error) {
     console.error("Dashboard error:", error);
@@ -805,12 +806,12 @@ function renderDashboardCharts(rows, payMix, total, monthlyTargetSatang, dailyTa
   }
 }
 
-function renderDashboardAlerts(rows, today, voids, projection, monthlyTargetSatang, dailyTargetSatang) {
+function renderDashboardAlerts(rows, today, voids, voidAmountSatang, projection, monthlyTargetSatang, dailyTargetSatang) {
   const alerts = [];
   if (today === 0) alerts.push(["warning", "ยังไม่มีการบันทึกยอดขายของวันนี้"]);
   if (today > 0 && today < dailyTargetSatang) alerts.push(["warning", `ยอดวันนี้ต่ำกว่า Daily Target ${money(dailyTargetSatang - today)}`]);
   if (projection < monthlyTargetSatang) alerts.push(["warning", "Projection สิ้นเดือนยังต่ำกว่า Monthly Target"]);
-  if (voids > 0) alerts.push(["danger", `พบ Void Bills สะสม ${voids.toLocaleString()} บิล`]);
+  if (voids > 0) alerts.push(["danger", `พบ Void Bills สะสม ${voids.toLocaleString()} บิล (มูลค่าความเสียหาย ${money(voidAmountSatang)})`]);
   if (!alerts.length) alerts.push(["success", "ผลการดำเนินงานอยู่ในเกณฑ์ปกติ"]);
 
   if ($("dash-alerts")) {
@@ -850,7 +851,8 @@ function renderRecent(rows, dailyTargetSatang) {
 function updateFormValidation() {
   const totalRaw = parseFloat($("sale-total")?.value || 0);
   const voidRaw = parseInt($("sale-void")?.value || 0, 10);
-  let hasNegative = totalRaw < 0 || voidRaw < 0;
+  const voidAmountRaw = parseFloat($("sale-void-amount")?.value || 0);
+  let hasNegative = totalRaw < 0 || voidRaw < 0 || voidAmountRaw < 0;
 
   let paySum = 0;
   channels.forEach(ch => {
@@ -864,7 +866,7 @@ function updateFormValidation() {
   
   if ($("val-status")) {
     if (hasNegative) {
-      $("val-status").textContent = "⚠️ ห้ามระบุค่าติดลบในยอดขายหรือช่องทางชำระเงิน";
+      $("val-status").textContent = "⚠️ ห้ามระบุค่าติดลบในยอดขาย, บิล Void หรือมูลค่า Void";
       $("val-status").className = "font-bold text-uno-red";
     } else if (isMatch) {
       $("val-status").textContent = "Total Sales ตรงกับ Sum Breakdown";
@@ -903,6 +905,7 @@ function openSaleForm(date = "", row = null) {
   });
 
   if ($("sale-void")) $("sale-void").value = row?.voidBill || 0;
+  if ($("sale-void-amount")) $("sale-void-amount").value = row ? toTHB(row.voidAmountSatang || 0).toFixed(1) : "0";
   updateFormValidation();
   $("modal-sale")?.classList.remove("hidden");
 }
@@ -918,9 +921,12 @@ $("btn-cancel-sale")?.addEventListener("click", closeSaleForm);
 
 preventNegativeInput($("sale-total"));
 preventNegativeInput($("sale-void"));
+preventNegativeInput($("sale-void-amount"));
 channels.forEach(ch => preventNegativeInput($(ch)));
 
 $("sale-total")?.addEventListener("input", updateFormValidation);
+$("sale-void")?.addEventListener("input", updateFormValidation);
+$("sale-void-amount")?.addEventListener("input", updateFormValidation);
 channels.forEach(ch => $(ch)?.addEventListener("input", updateFormValidation));
 
 // Auto-sum Breakdown to Total Sales
@@ -958,6 +964,12 @@ $("form-daily-sales")?.addEventListener("submit", async event => {
     return showToast("จำนวนบิล Void ต้องไม่ติดลบ (ตั้งแต่ 0 ขึ้นไป)", "danger");
   }
 
+  const voidAmountVal = parseFloat($("sale-void-amount")?.value || 0);
+  if (isNaN(voidAmountVal) || voidAmountVal < 0) {
+    return showToast("มูลค่าความเสียหายจากการ Void ต้องไม่ติดลบ (ตั้งแต่ 0 ขึ้นไป)", "danger");
+  }
+  const voidAmountSatang = toSatang(voidAmountVal);
+
   const payments = {};
   for (const channel of channels) {
     const val = parseFloat($(channel)?.value || 0);
@@ -974,13 +986,15 @@ $("form-daily-sales")?.addEventListener("submit", async event => {
     return showToast(`ยอด Payment รวม ${money(paymentTotal)} ไม่ตรงกับ Total Sales ${money(totalSalesSatang)}`, "danger");
   }
 
+  const currentUserIdentifier = getLoggedInUserIdentifier();
   const payload = {
     date,
     totalSalesSatang,
     payments,
     voidBill,
+    voidAmountSatang,
     updatedAt: serverTimestamp(),
-    updatedBy: getLoggedInUserIdentifier()
+    updatedBy: currentUserIdentifier
   };
 
   try {
@@ -989,12 +1003,12 @@ $("form-daily-sales")?.addEventListener("submit", async event => {
       const sfDoc = await transaction.get(saleDocRef);
       if (!sfDoc.exists()) {
         payload.createdAt = serverTimestamp();
-        payload.createdBy = getLoggedInUserIdentifier();
+        payload.createdBy = currentUserIdentifier;
         transaction.set(saleDocRef, payload);
       } else {
         const existingData = sfDoc.data() || {};
         payload.createdAt = existingData.createdAt || serverTimestamp();
-        payload.createdBy = existingData.createdBy || getLoggedInUserIdentifier();
+        payload.createdBy = existingData.createdBy || currentUserIdentifier;
         transaction.set(saleDocRef, payload, { merge: true });
       }
     });
@@ -1192,6 +1206,7 @@ function renderDailyTable() {
       <td class="p-3 text-right font-extrabold text-uno-red">${money(row.totalSalesSatang)}</td>
       ${channels.map(ch => `<td class="p-3 text-right">${money(row.payments?.[ch] || 0)}</td>`).join("")}
       <td class="p-3 text-center font-bold ${row.voidBill ? "text-uno-red" : ""}">${row.voidBill || 0}</td>
+      <td class="p-3 text-right font-bold text-uno-red">${money(row.voidAmountSatang || 0)}</td>
       <td class="p-3 text-[10px] text-neutral-500">${esc(row.updatedBy || "N/A")}</td>
       <td class="p-3 text-center whitespace-nowrap">
         <button class="detail-btn text-uno-charcoal font-bold mr-2 hover:underline" data-date="${row.date}">View</button>
@@ -1199,7 +1214,7 @@ function renderDailyTable() {
         <button class="delete-btn text-uno-red font-bold hover:underline" data-date="${row.date}">Delete</button>
       </td>
     </tr>
-  `).join("") || `<tr><td colspan="15" class="p-8 text-center text-neutral-400">ไม่พบข้อมูล</td></tr>`;
+  `).join("") || `<tr><td colspan="16" class="p-8 text-center text-neutral-400">ไม่พบข้อมูล</td></tr>`;
 
   if ($("daily-count")) $("daily-count").textContent = `${dailyFiltered.length} records`;
   if ($("daily-page-info")) $("daily-page-info").textContent = `Page ${dailyPage} / ${totalPages}`;
@@ -1229,7 +1244,11 @@ function showDetail(row) {
     ["Total Sales", money(row.totalSalesSatang)],
     ...channels.map(ch => [channelLabels[ch], money(row.payments?.[ch] || 0)]),
     ["Void Bills", (row.voidBill || 0).toLocaleString()],
-    ["Updated By", row.updatedBy || "N/A"]
+    ["Void Amount", money(row.voidAmountSatang || 0)],
+    ["Created By", row.createdBy || "N/A"],
+    ["Created At", row.createdAt?.toDate ? row.createdAt.toDate().toLocaleString("th-TH") : "N/A"],
+    ["Last Updated By", row.updatedBy || "N/A"],
+    ["Last Updated At", row.updatedAt?.toDate ? row.updatedAt.toDate().toLocaleString("th-TH") : "N/A"]
   ];
 
   if ($("detail-content")) {
@@ -1246,7 +1265,7 @@ function showDetail(row) {
 $("btn-close-detail")?.addEventListener("click", () => $("modal-detail")?.classList.add("hidden"));
 
 /* =========================================================
-   HISTORY & DELETE
+   HISTORY / AUDIT LOG
 ========================================================= */
 
 async function loadHistory() {
@@ -1261,18 +1280,33 @@ async function loadHistory() {
 
   try {
     const rows = await getSales("2000-01-01", "2099-12-31");
-    tbody.innerHTML = rows.map(row => `
-      <tr>
-        <td class="p-3.5 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
-        <td class="p-3.5 text-right font-extrabold text-uno-red">${money(row.totalSalesSatang)}</td>
-        <td class="p-3.5 text-center font-bold ${row.voidBill ? "text-uno-red" : ""}">${row.voidBill || 0}</td>
-        <td class="p-3.5 text-[10px] text-neutral-500">${esc(row.updatedBy || "N/A")}</td>
-        <td class="p-3.5 text-center">
-          <button class="hist-edit text-uno-charcoal font-bold mr-3 hover:underline" data-date="${row.date}">Edit</button>
-          <button class="hist-delete text-uno-red font-bold hover:underline" data-date="${row.date}">Delete</button>
-        </td>
-      </tr>
-    `).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ไม่มีข้อมูล</td></tr>`;
+    tbody.innerHTML = rows.map(row => {
+      const createdStr = row.createdAt?.toDate ? row.createdAt.toDate().toLocaleString("th-TH") : (row.date ? dateFmt(row.date) : "N/A");
+      const updatedStr = row.updatedAt?.toDate ? row.updatedAt.toDate().toLocaleString("th-TH") : "N/A";
+      const createdBy = row.createdBy || row.updatedBy || "N/A";
+      const updatedBy = row.updatedBy || "N/A";
+
+      return `
+        <tr>
+          <td class="p-3.5 font-bold text-uno-charcoal">${dateFmt(row.date)}</td>
+          <td class="p-3.5 text-right font-extrabold text-uno-red">${money(row.totalSalesSatang)}</td>
+          <td class="p-3.5 text-center font-bold ${row.voidBill ? "text-uno-red" : ""}">${row.voidBill || 0}</td>
+          <td class="p-3.5 text-right font-bold text-uno-red">${money(row.voidAmountSatang || 0)}</td>
+          <td class="p-3.5 text-[11px] text-neutral-600 font-medium">
+            <div class="font-bold text-neutral-800">${esc(createdBy)}</div>
+            <div class="text-[10px] text-neutral-400">${esc(createdStr)}</div>
+          </td>
+          <td class="p-3.5 text-[11px] text-neutral-600 font-medium">
+            <div class="font-bold text-neutral-800">${esc(updatedBy)}</div>
+            <div class="text-[10px] text-neutral-400">${esc(updatedStr)}</div>
+          </td>
+          <td class="p-3.5 text-center">
+            <button class="hist-edit text-uno-charcoal font-bold mr-3 hover:underline" data-date="${row.date}">Edit</button>
+            <button class="hist-delete text-uno-red font-bold hover:underline" data-date="${row.date}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join("") || `<tr><td colspan="7" class="p-6 text-center text-neutral-400">ไม่มีข้อมูล Audit Log</td></tr>`;
 
     tbody.querySelectorAll(".hist-edit").forEach(b => b.onclick = () => {
       const row = rows.find(i => i.date === b.dataset.date);
@@ -1280,7 +1314,7 @@ async function loadHistory() {
     });
     tbody.querySelectorAll(".hist-delete").forEach(b => b.onclick = () => triggerDeleteModal(b.dataset.date));
   } catch (error) {
-    console.error("History error:", error);
+    console.error("History Audit Log error:", error);
     showHistoryError(error);
   }
 }
@@ -1415,6 +1449,7 @@ async function loadReports() {
     const total = rows.reduce((sum, row) => sum + (row.totalSalesSatang || 0), 0);
     const target = rows.reduce((sum, row) => sum + (row.dailyTargetSatang || 0), 0);
     const voids = rows.reduce((sum, row) => sum + (row.voidBill || 0), 0);
+    const voidAmountSatang = rows.reduce((sum, row) => sum + (row.voidAmountSatang || 0), 0);
     const avg = rows.length ? Math.round(total / rows.length) : 0;
     const achievementObj = getAchievementStatus(total, target);
     const achievement = achievementObj.rate;
@@ -1435,9 +1470,8 @@ async function loadReports() {
       $("report-recorded-days").textContent = `${rows.length} วันทำการ`;
     }
     if ($("report-store-status")) {
-      const isOnTarget = achievement >= 100;
-      $("report-store-status").className = `pill ${isOnTarget ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-amber-500/20 text-amber-300 border border-amber-500/40"} text-[11px] font-extrabold`;
-      $("report-store-status").textContent = isOnTarget ? "On Target (ผ่านเป้า)" : "Behind Target (ต่ำกว่าเป้า)";
+      $("report-store-status").className = `pill ${achievementObj.pillClass} text-[11px] font-extrabold`;
+      $("report-store-status").textContent = `${achievementObj.label} (${achievement.toFixed(1)}%)`;
     }
     if ($("report-generated-at")) {
       const now = new Date();
@@ -1453,7 +1487,7 @@ async function loadReports() {
     if ($("report-avg")) $("report-avg").textContent = money(avg);
     if ($("report-best")) $("report-best").textContent = best ? `${dateFmt(best.date)} (${money(best.totalSalesSatang)})` : "—";
     if ($("report-lowest")) $("report-lowest").textContent = lowest ? `${dateFmt(lowest.date)} (${money(lowest.totalSalesSatang)})` : "—";
-    if ($("report-void")) $("report-void").textContent = `${voids.toLocaleString()} บิล`;
+    if ($("report-void")) $("report-void").textContent = `${voids.toLocaleString()} บิล (${money(voidAmountSatang)})`;
     if ($("report-hit-rate")) $("report-hit-rate").textContent = `${hitCount}/${rows.length} (${hitRate}%)`;
 
     if ($("report-instore-sales")) $("report-instore-sales").textContent = money(payMix.inStoreTotal);
@@ -1472,7 +1506,7 @@ async function loadReports() {
     renderReportCharts(rows, payMix);
     renderRanking(rows);
     renderReportChannelsTable(payMix.rankedChannels, total, rows.length);
-    renderInsights(rows, total, target, voids, achievement, hitCount);
+    renderInsights(rows, total, target, voids, voidAmountSatang, achievement, hitCount);
     renderReportLedger();
   } catch (error) {
     console.error("Reports error:", error);
@@ -1548,7 +1582,7 @@ function renderReportChannelsTable(rankedChannels, totalSalesSatang, daysCount) 
           ${esc(item.name)}
         </td>
         <td class="p-3">
-          <span class="pill ${isDelivery ? "bg-red-50 text-uno-red" : "bg-neutral-100 text-neutral-700"}">
+          <span class="pill ${isDelivery ? "bg-red-50 text-uno-red border border-red-200" : "bg-neutral-100 text-neutral-700"}">
             ${isDelivery ? "Delivery" : "Counter"}
           </span>
         </td>
@@ -1584,7 +1618,7 @@ function renderRanking(rows) {
   }).join("") || `<tr><td colspan="5" class="p-6 text-center text-neutral-400">ไม่มีข้อมูลในช่วงที่เลือก</td></tr>`;
 }
 
-function renderInsights(rows, total, target, voids, achievement, hitCount) {
+function renderInsights(rows, total, target, voids, voidAmountSatang, achievement, hitCount) {
   if (!$("report-insights")) return;
   const top = rows.slice().sort((a, b) => (b.totalSalesSatang || 0) - (a.totalSalesSatang || 0))[0];
   const lowest = rows.slice().sort((a, b) => (a.totalSalesSatang || 0) - (b.totalSalesSatang || 0))[0];
@@ -1594,7 +1628,7 @@ function renderInsights(rows, total, target, voids, achievement, hitCount) {
     `ทำยอดทะลุเป้าหมายรายวันได้ <strong>${hitCount} วัน</strong> จากทั้งหมด ${rows.length} วันทำการ (${rows.length ? ((hitCount / rows.length) * 100).toFixed(0) : 0}%)`,
     `ยอดขายสูงสุดเกิดขึ้นเมื่อ <strong>${top ? `${dateFmt(top.date)} (${getDayName(top.date)})` : "—"}</strong> ด้วยยอดขาย <strong>${top ? money(top.totalSalesSatang) : "฿0.00"}</strong>`,
     `ยอดขายต่ำสุดประจำรอบคือ <strong>${lowest ? `${dateFmt(lowest.date)} (${getDayName(lowest.date)})` : "—"}</strong> (${lowest ? money(lowest.totalSalesSatang) : "฿0.00"})`,
-    `พบรายการยกเลิกบิล (Void Bills) รวมทั้งสิ้น <strong>${voids.toLocaleString()}</strong> รายการตลอดช่วงเวลาที่เลือก`
+    `พบรายการยกเลิกบิล (Void Bills) รวมทั้งสิ้น <strong>${voids.toLocaleString()} รายการ</strong> คิดเป็นมูลค่าความเสียหาย <strong>${money(voidAmountSatang)}</strong>`
   ];
 
   $("report-insights").innerHTML = insights.map((text, index) => `
@@ -1650,6 +1684,7 @@ function renderReportLedger() {
         <td class="p-3 text-right">${money(row.payments?.lineMan || 0)}</td>
         <td class="p-3 text-right">${money(row.payments?.grab || 0)}</td>
         <td class="p-3 text-center ${row.voidBill ? "font-bold text-uno-red" : "text-neutral-400"}">${row.voidBill || 0}</td>
+        <td class="p-3 text-right font-bold text-uno-red">${money(row.voidAmountSatang || 0)}</td>
         <td class="p-3 text-right font-bold ${ach.textClass}">${ach.rate.toFixed(1)}%</td>
         <td class="p-3 text-center">
           <span class="pill ${ach.pillClass}">
@@ -1659,12 +1694,13 @@ function renderReportLedger() {
         <td class="p-3 text-left font-medium text-neutral-500">${esc(row.updatedBy || "-")}</td>
       </tr>
     `;
-  }).join("") || `<tr><td colspan="17" class="p-8 text-center text-neutral-400">ไม่พบรายการข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
+  }).join("") || `<tr><td colspan="18" class="p-8 text-center text-neutral-400">ไม่พบรายการข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
 
   if ($("report-ledger-tfoot")) {
     const sumTotal = filtered.reduce((acc, r) => acc + (r.totalSalesSatang || 0), 0);
     const sumTarget = filtered.reduce((acc, r) => acc + (r.dailyTargetSatang || 0), 0);
     const sumVoids = filtered.reduce((acc, r) => acc + (r.voidBill || 0), 0);
+    const sumVoidAmount = filtered.reduce((acc, r) => acc + (r.voidAmountSatang || 0), 0);
     const totalAch = getAchievementStatus(sumTotal, sumTarget);
 
     const sumChannels = {};
@@ -1688,6 +1724,7 @@ function renderReportLedger() {
         <td class="p-3 text-right">${money(sumChannels.lineMan)}</td>
         <td class="p-3 text-right">${money(sumChannels.grab)}</td>
         <td class="p-3 text-center font-bold text-uno-red">${sumVoids.toLocaleString()}</td>
+        <td class="p-3 text-right font-extrabold text-uno-red">${money(sumVoidAmount)}</td>
         <td class="p-3 text-right font-black ${totalAch.textClass}">${totalAch.rate.toFixed(1)}%</td>
         <td class="p-3 text-center"><span class="pill ${totalAch.pillClass}">${totalAch.shortLabel}</span></td>
         <td class="p-3 text-left text-neutral-400">—</td>
@@ -1720,6 +1757,7 @@ function exportReportCSV() {
     "Line Man",
     "Grab",
     "Void Bills",
+    "Void Amount (THB)",
     "เป้าหมายรายวัน (Daily Target THB)",
     "% เทียบเป้าหมาย (% Achievement)",
     "สถานะ (Status)",
@@ -1745,6 +1783,7 @@ function exportReportCSV() {
       toTHB(r.payments?.lineMan || 0).toFixed(1),
       toTHB(r.payments?.grab || 0).toFixed(1),
       r.voidBill || 0,
+      toTHB(r.voidAmountSatang || 0).toFixed(1),
       toTHB(r.dailyTargetSatang || 0).toFixed(1),
       `${ach.rate.toFixed(1)}%`,
       ach.label,
@@ -1755,6 +1794,7 @@ function exportReportCSV() {
   const totalSales = sorted.reduce((sum, r) => sum + (r.totalSalesSatang || 0), 0);
   const totalTarget = sorted.reduce((sum, r) => sum + (r.dailyTargetSatang || 0), 0);
   const totalVoids = sorted.reduce((sum, r) => sum + (r.voidBill || 0), 0);
+  const totalVoidAmount = sorted.reduce((sum, r) => sum + (r.voidAmountSatang || 0), 0);
   const totalAch = getAchievementStatus(totalSales, totalTarget);
 
   const sumChannels = {};
@@ -1777,6 +1817,7 @@ function exportReportCSV() {
     toTHB(sumChannels.lineMan).toFixed(1),
     toTHB(sumChannels.grab).toFixed(1),
     totalVoids,
+    toTHB(totalVoidAmount).toFixed(1),
     toTHB(totalTarget).toFixed(1),
     `${totalAch.rate.toFixed(1)}%`,
     totalAch.label,
@@ -1945,13 +1986,11 @@ function showAuthError(message) {
 }
 
 function initAuth() {
-  // Toggle Login / Register
   $("btn-auth-toggle-mode")?.addEventListener("click", () => {
     authMode = authMode === "login" ? "register" : "login";
     updateAuthModeUI();
   });
 
-  // Standard Form Submit (Email & Password)
   $("form-auth")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = $("auth-email")?.value.trim() || "";
@@ -1985,9 +2024,9 @@ function initAuth() {
         err.code === "auth/user-not-found" ||
         err.code === "auth/wrong-password"
       ) {
-        msg = "อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้สร้างบัญชีผู้ใช้ใน Firebase Auth (สามารถคลิกปุ่ม 'เข้าสู่ระบบด่วน / สร้างบัญชี' เพื่อสร้างบัญชีแรกได้ทันที)";
+        msg = "อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้สร้างบัญชีผู้ใช้ใน Firebase Auth";
       } else if (err.code === "auth/email-already-in-use") {
-        msg = "อีเมลนี้มีอยู่ในระบบแล้ว กรุณากด 'เข้าสู่ระบบ (Sign In)' ด้านล่าง";
+        msg = "อีเมลนี้มีอยู่ในระบบแล้ว กรุณากด 'เข้าสู่ระบบ (Sign In)'";
       } else if (err.code === "auth/weak-password") {
         msg = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
       } else if (err.code === "auth/invalid-email") {
@@ -2002,9 +2041,6 @@ function initAuth() {
     }
   });
 
-  
-
-  // Header & Admin Sign Out
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -2020,7 +2056,6 @@ function initAuth() {
     $("auth-modal")?.classList.remove("hidden");
   });
 
-  // Auth State Listener
   onAuthStateChanged(auth, (user) => {
     currentUser = user;
     const authModal = $("auth-modal");
@@ -2028,7 +2063,6 @@ function initAuth() {
     const headerSignInBtn = $("btn-header-signin");
 
     if (user) {
-      // User is signed in
       if (authModal) authModal.classList.add("hidden");
       if (headerUserBadge) headerUserBadge.classList.remove("hidden");
       if (headerSignInBtn) headerSignInBtn.classList.add("hidden");
@@ -2038,7 +2072,6 @@ function initAuth() {
       if ($("header-user-initial")) $("header-user-initial").textContent = displayEmail[0].toUpperCase();
       if ($("admin-user-email")) $("admin-user-email").textContent = displayEmail;
 
-      // Safely load data for currently active page under authenticated session
       const activePage = document.querySelector(".page:not(.hidden)");
       const pageId = activePage?.id || "page-dashboard";
       if (pageId === "page-dashboard") loadDashboard().catch(err => console.error("Auth dashboard load error:", err));
@@ -2046,7 +2079,6 @@ function initAuth() {
       else if (pageId === "page-history") loadHistory().catch(err => console.error("Auth history load error:", err));
       else if (pageId === "page-reports") loadReports().catch(err => console.error("Auth reports load error:", err));
     } else {
-      // User is signed out
       if (authModal) authModal.classList.remove("hidden");
       if (headerUserBadge) headerUserBadge.classList.add("hidden");
       if (headerSignInBtn) headerSignInBtn.classList.remove("hidden");
@@ -2059,14 +2091,7 @@ function initAuth() {
    INITIALIZATION
 ========================================================= */
 
-// เริ่มต้นระบบความปลอดภัยและ Firebase Authentication
 initAuth();
-
-// เริ่มต้นนาฬิกา Real-time
 initLiveClock();
-
-// เริ่มต้นเตรียมวันที่รายงาน
 defaultReportDates();
-
-// สั่งเปิดหน้า Dashboard เป็นหน้าแรก (UI Setup)
 setActivePage("page-dashboard");
