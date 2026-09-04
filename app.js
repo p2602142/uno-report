@@ -1352,7 +1352,7 @@ $("btn-confirm-delete")?.addEventListener("click", async () => {
 let currentReportRows = [];
 let reportTargetLookup = {};
 
-const dayNamesThai = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const dayNamesThai = ["SUN.", "MON", "TUE", "WES", "THU", "FRI", "SAT"];
 const getDayName = dateStr => {
   if (!dateStr) return "";
   const [y, m, d] = dateStr.split("-").map(Number);
