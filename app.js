@@ -1825,7 +1825,7 @@ function exportReportCSV() {
   ].join(",");
 
   const csvContent = "\uFEFF" + [
-    `# UNO! COFFEE COMPANY - Branch UN1021-CNV (Central Village)`,
+    `# UNO! COFFEE COMPANY - Branch UN1021-CNV (Central Nortville)`,
     `# Store Performance Report: ${from} to ${to}`,
     `# Export Date: ${new Date().toISOString()}`,
     "",
@@ -1927,7 +1927,7 @@ $("btn-admin-backup")?.addEventListener("click", async () => {
     const exportObj = {
       brand: "UNO! COFFEE COMPANY",
       branchCode: "UN1021-CNV",
-      branchName: "Central Village",
+      branchName: "Central Nortville",
       exportedAt: new Date().toISOString(),
       totalRecords: allData.length,
       monthlyTargets: monthTargets,
