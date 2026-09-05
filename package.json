@@ -7,7 +7,8 @@
     "dev": "node server.js",
     "build": "echo 'Build ready'",
     "start": "node server.js",
-    "lint": "node --check server.js"
+    "lint": "node --check server.js && node --check app.js && node test_daily_v2.js",
+    "test": "node test_daily_v2.js"
   },
   "dependencies": {
     "express": "^4.21.2"

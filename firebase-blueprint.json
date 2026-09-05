@@ -21,6 +21,10 @@
           "type": "integer",
           "description": "Number of voided bills"
         },
+        "voidAmountSatang": {
+          "type": "integer",
+          "description": "Monetary value loss from voided bills in Thai Satang"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
